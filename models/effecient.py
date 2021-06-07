@@ -138,7 +138,7 @@ class EfficientNet(nn.Module):
         :param version: ``str`` current version
         :param alpha: ``float``, const, depth, in the paper default=1.2
         :param beta: ``float``, const, width, in the paper default=1.1
-        :return: ``Tuple``, factors
+        :return: ``Tuple()``, factors
         """
         phi, gamma, drop_rate = PHI_VALUES[version]
         depth_factor = alpha ** phi
@@ -148,10 +148,10 @@ class EfficientNet(nn.Module):
     def create_features(self, width_factor, depth_factor, last_channels):
         """
         Creates features
-        :param width_factor:
-        :param depth_factor:
-        :param last_channels:
-        :return:
+        :param width_factor: ``float``, width factor
+        :param depth_factor: ``float``, depth factor
+        :param last_channels: ``int``, num output channels for last conv block
+        :return: ``nn.Sequential``
         """
         channels = int(32 * width_factor)
         features = [ConvBlock(3, channels, kernel_size=3, stride=2, padding=1)]
@@ -183,6 +183,7 @@ class EfficientNet(nn.Module):
     def forward(self, x):
         """
         :param x: ``Tensor([N, C, H, W])``
+        :return: ``Tensor([N, NUM_CLASSES])``
         """
         x = self.pool(self.features(x))
         return self.classifier(x.view(x.shape[0], -1))
