@@ -1,0 +1,26 @@
+from easydict import EasyDict as edict
+
+
+__C = edict()
+cfg = __C
+
+# NAMES
+__C.PROJECT_NAME = "SETI"
+__C.PROJECT_VERSION_NAME = "BASELINE"
+__C.DATASET_NAME = ""
+
+# GLOBAL
+__C.EFFICIENT_VERSION = 'b0'
+__C.IMG_SIZE = 224
+__C.START_EPOCH = 0
+__C.END_EPOCH = 5
+__C.LEARNING_RATE = 1e-3
+__C.BATCH_SIZE = 30
+__C.DIFF_AUGMENT_POLICY = 'color'
+
+
+__C.SAVE = True
+# DISPLAY RESULTS
+__C.WANDB_ID = None
+__C.SAVE_EPOCH_FREQ = 1
+__C.LOG_FREQ = 100
