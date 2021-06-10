@@ -125,6 +125,9 @@ if __name__ == '__main__':
 
     if args.device == 'gpu':
         device = torch.device('cuda')
+    # TODO: REMOVE AFTER TEST
+    else:
+        device = torch.device('cpu')
 
     # TODO: add TPU
     # if args.device == 'tpu':
