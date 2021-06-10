@@ -1,3 +1,4 @@
+import logging
 from easydict import EasyDict as edict
 
 
@@ -7,16 +8,29 @@ cfg = __C
 # NAMES
 __C.PROJECT_NAME = "SETI"
 __C.PROJECT_VERSION_NAME = "BASELINE"
-__C.DATASET_NAME = ""
 
 # GLOBAL
-__C.EFFICIENT_VERSION = 'b0'
+__C.SEED = 44
+__C.USE_APEX = True
+__C.NUM_CLASSES = 2
+__C.EFFICIENT_VERSIONS = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7']
 __C.IMG_SIZE = 224
-__C.START_EPOCH = 0
-__C.END_EPOCH = 5
-__C.LEARNING_RATE = 1e-3
-__C.BATCH_SIZE = 30
-__C.DIFF_AUGMENT_POLICY = 'color'
+__C.NUM_EPOCHS = 4
+__C.LEARNING_RATE = 1e-4
+__C.BATCH_SIZE = 64
+
+# OPTIMIZER ADAM
+__C.WEIGHT_DECAY = 1e-6
+__C.BETAS = (0.0, 0.99)
+
+# SCHEDULER
+__C.SCHEDULER_VERSION = 'ReduceLROnPlateau'     # [ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts]
+__C.FACTOR = 0.2
+__C.PATIENCE = 4
+__C.EPS = 1e-6
+__C.T_MAX = 6
+__C.MIN_LR = 1e-6
+__C.T_0 = 6
 
 
 __C.SAVE = True
@@ -24,3 +38,17 @@ __C.SAVE = True
 __C.WANDB_ID = None
 __C.SAVE_EPOCH_FREQ = 1
 __C.LOG_FREQ = 100
+
+__C.DATA_ROOT = None
+__C.OUTPUT_DIR = './'
+
+# Init logger
+logger = logging.getLogger()
+c_handler = logging.StreamHandler()
+
+c_handler.setLevel(logging.INFO)
+c_format = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+f_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+c_handler.setFormatter(c_format)
+logger.addHandler(c_handler)
+logger.setLevel(logging.INFO)
