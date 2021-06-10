@@ -116,7 +116,7 @@ class InvertedResidualBlock(nn.Module):
 
 class EfficientNet(nn.Module):
     """Efficient"""
-    def __init__(self, version, num_classes):
+    def __init__(self, version, num_classes, in_channels=1):
         """
         :param version: ``str``, version of factor should be [``b_0``, ..., ``b_k``], where k in {0,...,7}
         :param num_classes: ``int``, num classes of classifier
@@ -125,6 +125,7 @@ class EfficientNet(nn.Module):
         depth_factor, width_factor, drop_rate = self.calculate_factors(version)
         last_channels = ceil(1280 * width_factor)
 
+        self.in_channels = in_channels
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.features = self.create_features(width_factor, depth_factor, last_channels)
         self.classifier = nn.Sequential(
@@ -154,7 +155,7 @@ class EfficientNet(nn.Module):
         :return: ``nn.Sequential``
         """
         channels = int(32 * width_factor)
-        features = [ConvBlock(3, channels, kernel_size=3, stride=2, padding=1)]
+        features = [ConvBlock(self.in_channels, channels, kernel_size=3, stride=2, padding=1)]
         in_channels = channels
 
         for expand_ratio, channels, repeats, stride, kernel_size in BASE_MODEL:
