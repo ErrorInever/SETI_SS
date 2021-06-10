@@ -14,6 +14,7 @@ class SETIDataset(Dataset):
         self.cad_paths = df['file_path'].values
         self.cad_labels = df['target'].values
 
+        self.train_transform = transform
         self._transform = A.Compose([
             A.Resize(cfg.IMG_SIZE, cfg.IMG_SIZE),
             ToTensorV2()
@@ -30,7 +31,7 @@ class SETIDataset(Dataset):
         cad_path = self.cad_paths[idx]
         image = np.load(cad_path).astype(np.float32)
         image = np.vstack(image).transpose((1, 0))
-        if self.transform:
+        if self.train_transform:
             image = self.transform(image=image)['image']
         else:
             image = image[np.newaxis, :, :]
