@@ -116,13 +116,13 @@ class InvertedResidualBlock(nn.Module):
 
 class EfficientNet(nn.Module):
     """Efficient"""
-    def __init__(self, verison, num_classes):
+    def __init__(self, version, num_classes):
         """
-        :param verison: ``str``, version of factor should be [``b_0``, ..., ``b_k``], where k in {0,...,7}
+        :param version: ``str``, version of factor should be [``b_0``, ..., ``b_k``], where k in {0,...,7}
         :param num_classes: ``int``, num classes of classifier
         """
         super().__init__()
-        depth_factor, width_factor, drop_rate = self.calculate_factors(verison)
+        depth_factor, width_factor, drop_rate = self.calculate_factors(version)
         last_channels = ceil(1280 * width_factor)
 
         self.pool = nn.AdaptiveAvgPool2d(1)
