@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--load_model', dest='load_model', help='Path to model.pth.tar', default=None, type=str)
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default use gpu if available',
                         default='gpu', type=str)
-    # parser.add_argument('--diff_aug', dest='diff_aug', help='Use differentiable augmentation', action='store_true')
+    parser.add_argument('--version_name', dest='version_name', help='Version name for wandb', default=None, type=str)
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
                                                               'input api key', default=None, type=str)
@@ -35,11 +35,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def train_one_epoch(model, optimizer, scheduler, criterion, dataloader, device):
+def train_one_epoch(model, optimizer, criterion, dataloader, device):
     """
     :param model: model
     :param optimizer: optimizer
-    :param scheduler: scheduler
     :param criterion: loss
     :param dataloader: train data dataloader
     :param device: gpu or tpu
@@ -114,6 +113,11 @@ if __name__ == '__main__':
     cfg.DATA_ROOT = args.data_path
     logger = logging.getLogger('main')
 
+    if args.version_name:
+        project_version = args.version_name
+    else:
+        project_version = 'efficient_net'
+
     if args.wandb_key:
         os.environ["WANDB_API_KEY"] = args.wandb_key
     if args.wandb_id:
@@ -125,11 +129,7 @@ if __name__ == '__main__':
 
     if args.device == 'gpu':
         device = torch.device('cuda')
-    # TODO: REMOVE AFTER TEST
-    else:
-        device = torch.device('cpu')
 
-    # TODO: add TPU
     # if args.device == 'tpu':
     #     try:
     #         import torch_xla.core.xla_model as xm
@@ -157,10 +157,15 @@ if __name__ == '__main__':
     # Split KFold
     train_df = split_data_kfold(train_df)
     test_df['file_path'] = test_df['id'].apply(get_test_file_path)
-
+    # TODO add specify version
+    # TODO add metrics for batches
+    # TODO add TPU
+    # TODO version name arg
+    # TODO display K FOLDS
+    # TODO load data
     for version in cfg.EFFICIENT_VERSIONS:
 
-        cfg.PROJECT_VERSION_NAME = f'efficient_net_{version}'
+        cfg.PROJECT_VERSION_NAME = f'{project_version}_{version}'
         # defining model version
         model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
         logger.info(f'init model version {version}')
