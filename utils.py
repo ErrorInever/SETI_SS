@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts
-
+from sklearn.model_selection import StratifiedKFold
 from config import cfg
 
 
@@ -43,6 +43,14 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+
+
+def split_data_kfold(df):
+    fold = StratifiedKFold(n_splits=cfg.N_FOLD, shuffle=True, random_state=cfg.SEED)
+    for n, (train_idx, val_idx) in enumerate(fold.split(df, df['target'])):
+        df.loc[val_idx, 'fold'] = int(n)
+    df['fold'] = df['fold'].astype(int)
+    return df
 
 
 

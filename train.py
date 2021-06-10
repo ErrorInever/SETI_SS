@@ -13,7 +13,8 @@ from tqdm import tqdm
 from models.effecient import EfficientNet
 from data.dataset import SETIDataset
 from torch.utils.data import DataLoader
-from utils import seed_everything, get_train_file_path, get_test_file_path, get_scheduler, AverageMeter
+from utils import (seed_everything, get_train_file_path, get_test_file_path, get_scheduler, AverageMeter,
+                   split_data_kfold)
 from config import cfg
 from metric_logger import MetricLogger
 from sklearn.metrics import roc_auc_score
@@ -56,10 +57,10 @@ def train_one_epoch(model, optimizer, scheduler, criterion, dataloader, device):
         if cfg.USE_APEX:
             with torch.cuda.amp.autocast():
                 y_preds = model(img)
-                loss = criterion(y_preds, label)
+                loss = criterion(y_preds.view(-1), label)
         else:
             y_preds = model(img)
-            loss = criterion(y_preds, label)
+            loss = criterion(y_preds.view(-1), label)
 
         losses.update(loss.item(), batch_size)
 
@@ -74,8 +75,7 @@ def train_one_epoch(model, optimizer, scheduler, criterion, dataloader, device):
         optimizer.zero_grad()
 
         loop.set_postfix(
-            loss=loss,
-            sche_lr=scheduler.get_lr()[0]
+            loss=loss
         )
 
     return losses.avg
@@ -85,7 +85,6 @@ def eval_one_epoch(model, criterion, dataloader, device):
     model.eval()
     losses = AverageMeter()
     preds = []
-    targets = []
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
         batch_size = label.size(0)
@@ -93,17 +92,16 @@ def eval_one_epoch(model, criterion, dataloader, device):
         label = label.to(device)
         with torch.no_grad():
             y_preds = model(img)
-        loss = criterion(y_preds, label)
+        loss = criterion(y_preds.view(-1), label)
         losses.update(loss.item(), batch_size)
         preds.append(y_preds.sigmoid().to('cpu').numpy())
-        targets.append(label.to('cpu').numpy())
 
         loop.set_postfix(
             loss=loss
         )
 
     predictions = np.concatenate(preds)
-    return losses.avg, predictions, targets
+    return losses.avg, predictions
 
 
 if __name__ == '__main__':
@@ -153,61 +151,74 @@ if __name__ == '__main__':
     test_df = pd.read_csv(test_path)
 
     train_df['file_path'] = train_df['id'].apply(get_train_file_path)
+    # Split KFold
+    train_df = split_data_kfold(train_df)
     test_df['file_path'] = test_df['id'].apply(get_test_file_path)
-    # TODO val loader
-    train_dataset = SETIDataset(train_df, transform=True)
-    test_dataset = SETIDataset(test_df)
-    # defining dataloaders
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True, num_workers=2,
-                                  pin_memory=True, drop_last=True)
-    test_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True)
 
     for version in cfg.EFFICIENT_VERSIONS:
 
         cfg.PROJECT_VERSION_NAME = f'efficient_net_{version}'
         # defining model version
-        model = EfficientNet(version, num_classes=cfg.NUM_CLASSES).to(device)
+        model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
         logger.info(f'init model version {version}')
 
-        # defining optimizer, scheduler, loss
-        optimizer = optim.Adam(model.parameters(model), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
-                               weight_decay=cfg.WEIGHT_DECAY)
-        scheduler = get_scheduler(optimizer)
-        criterion = nn.BCEWithLogitsLoss()
+        for fold in cfg.N_FOLD:
 
-        metric_logger = MetricLogger(version)
+            train_idxs = train_df[train_df['fold'] != fold].index
+            val_idxs = train_df[train_df['fold'] == fold].index
 
-        best_score = 0.
-        best_loss = np.inf
-        for epoch in range(cfg.NUM_EPOCHS):
-            # train model
-            avg_loss = train_one_epoch(model, optimizer, scheduler, criterion, train_dataloader, device)
-            # evaluate model
-            avg_val_loss, preds, targets = eval_one_epoch(model, criterion, test_dataloader, device)
+            train_folds = train_df.loc[train_idxs].reset_index(drop=True)
+            val_folds = train_df.loc[val_idxs].reset_index(drop=True)
+            # y targets
+            val_labels = val_folds['target'].values
 
-            if isinstance(scheduler, ReduceLROnPlateau):
-                scheduler.step(avg_val_loss)
-            elif isinstance(scheduler, CosineAnnealingLR):
-                scheduler.step()
-            elif isinstance(scheduler, CosineAnnealingWarmRestarts):
-                scheduler.step()
-            # metric
-            roc_auc_score = roc_auc_score(targets, preds)
-            metric_logger.log(avg_loss, avg_val_loss, roc_auc_score)
-            # save model
-            if roc_auc_score > best_score:
-                best_score = roc_auc_score
-                logger.info(f"Fined the best score {best_score:.4f}: EPOCH {epoch}")
-                logger.info(f"Save model to {cfg.OUTPUT_DIR}")
-                torch.save({
-                    'model': model.state_dict(),
-                    'preds': preds
-                }, cfg.OUTPUT_DIR + f"efficient_{version}_best_auc.pth.tar")
-            if avg_val_loss < best_loss:
-                best_loss = avg_val_loss
-                logger.info(f"Fined the best evaluation loss {best_loss:.4f}: EPOCH {epoch}")
-                logger.info(f"Save model to {cfg.OUTPUT_DIR}")
-                torch.save({
-                    'model': model.state_dict(),
-                    'preds': preds
-                }, cfg.OUTPUT_DIR + f"efficient_{version}_best_val_loss.pth.tar")
+            train_dataset = SETIDataset(train_folds, transform=True)
+            val_dataset = SETIDataset(val_folds)
+
+            train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True, num_workers=2,
+                                          pin_memory=True, drop_last=True)
+            val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
+                                        drop_last=False)
+
+            # defining optimizer, scheduler, loss
+            optimizer = optim.Adam(model.parameters(model), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
+                                   weight_decay=cfg.WEIGHT_DECAY)
+            scheduler = get_scheduler(optimizer)
+            criterion = nn.BCEWithLogitsLoss()
+
+            metric_logger = MetricLogger(version)
+
+            best_score = 0.
+            best_loss = np.inf
+            for epoch in range(cfg.NUM_EPOCHS):
+                # train model
+                avg_loss = train_one_epoch(model, optimizer, scheduler, criterion, train_dataloader, device)
+                # evaluate model
+                avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, device)
+
+                if isinstance(scheduler, ReduceLROnPlateau):
+                    scheduler.step(avg_val_loss)
+                elif isinstance(scheduler, CosineAnnealingLR):
+                    scheduler.step()
+                elif isinstance(scheduler, CosineAnnealingWarmRestarts):
+                    scheduler.step()
+                # metric
+                roc_auc_score = roc_auc_score(val_labels, preds)
+                metric_logger.log(avg_loss, avg_val_loss, roc_auc_score)
+                # save model
+                if roc_auc_score > best_score:
+                    best_score = roc_auc_score
+                    logger.info(f"Fined the best score {best_score:.4f}: EPOCH {epoch}")
+                    logger.info(f"Save model to {cfg.OUTPUT_DIR}")
+                    torch.save({
+                        'model': model.state_dict(),
+                        'preds': preds
+                    }, cfg.OUTPUT_DIR + f"efficient_{version}_best_auc.pth.tar")
+                if avg_val_loss < best_loss:
+                    best_loss = avg_val_loss
+                    logger.info(f"Fined the best evaluation loss {best_loss:.4f}: EPOCH {epoch}")
+                    logger.info(f"Save model to {cfg.OUTPUT_DIR}")
+                    torch.save({
+                        'model': model.state_dict(),
+                        'preds': preds
+                    }, cfg.OUTPUT_DIR + f"efficient_{version}_best_val_loss.pth.tar")
