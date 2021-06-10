@@ -1,0 +1,67 @@
+import random
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts
+
+from config import cfg
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
+
+def show_cadence(idx, path, label):
+    cadence = np.load(path).astype(np.float32)
+
+    fig, ax = plt.subplots(nrows=6, ncols=1, figsize=(16, 10))
+    fig.suptitle(f'CADENCE_ID:{idx}   TARGET:{label}', fontsize=18)
+    for i in range(6):
+        ax[i].imshow(cadence[i], interpolation='nearest', aspect='auto')
+        ax[i].text(5, 100, ["ON", "OFF"][i % 2], bbox={'facecolor': 'white'})
+        ax[i].get_xaxis().set_visible(False)
+    plt.show()
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+
+
+def get_train_file_path(image_id):
+    return "{}/train/{}/{}.npy".format(cfg.DATA_ROOT, image_id[0], image_id)
+
+
+def get_test_file_path(image_id):
+    return "{}/test/{}/{}.npy".format(cfg.DATA_ROOT, image_id[0], image_id)
+
+
+def get_scheduler(optimizer):
+    if cfg.SCHEDULER_VERSION == 'ReduceLROnPlateau':
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=cfg.FACTOR, patience=cfg.PATIENCE, verbose=True,
+                                      eps=cfg.EPS)
+    elif cfg.SCHEDULER_VERSION == 'CosineAnnealingLR':
+        scheduler = CosineAnnealingLR(optimizer, T_max=cfg.T_MAX, eta_min=cfg.MIN_LR, last_epoch=-1)
+    elif cfg.SCHEDULER_VERSION == 'CosineAnnealingWarmRestarts':
+        scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=cfg.T_0, T_mult=1, eta_min=cfg.MIN_LR, last_epoch=-1)
+    else:
+        raise ValueError('SCHEDULER WAS NOT DEFINED')
+    return scheduler
