@@ -165,7 +165,7 @@ if __name__ == '__main__':
         model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
         logger.info(f'init model version {version}')
 
-        for fold in cfg.N_FOLD:
+        for fold in range(cfg.N_FOLD):
 
             train_idxs = train_df[train_df['fold'] != fold].index
             val_idxs = train_df[train_df['fold'] == fold].index
