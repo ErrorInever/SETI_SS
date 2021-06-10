@@ -10,9 +10,10 @@ __C.PROJECT_NAME = "SETI"
 __C.PROJECT_VERSION_NAME = "BASELINE"
 
 # GLOBAL
+__C.IMG_CHANNELS = 1
 __C.SEED = 44
 __C.USE_APEX = True
-__C.NUM_CLASSES = 2
+__C.NUM_CLASSES = 1
 __C.EFFICIENT_VERSIONS = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7']
 __C.IMG_SIZE = 224
 __C.NUM_EPOCHS = 4
@@ -31,11 +32,13 @@ __C.EPS = 1e-6
 __C.T_MAX = 6
 __C.MIN_LR = 1e-6
 __C.T_0 = 6
-
+# DATA
+__C.N_FOLD = 4
 
 __C.SAVE = True
 # DISPLAY RESULTS
 __C.WANDB_ID = None
+__C.RESUME_ID = None
 __C.SAVE_EPOCH_FREQ = 1
 __C.LOG_FREQ = 100
 
