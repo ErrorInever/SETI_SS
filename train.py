@@ -73,6 +73,9 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device):
 
         optimizer.zero_grad()
 
+        if batch_idx % cfg.LOG_FREQ == 0:
+            MetricLogger.train_loss_batch(loss.item())
+
         loop.set_postfix(
             loss=loss
         )
@@ -94,6 +97,9 @@ def eval_one_epoch(model, criterion, dataloader, device):
         loss = criterion(y_preds.view(-1), label)
         losses.update(loss.item(), batch_size)
         preds.append(y_preds.sigmoid().to('cpu').numpy())
+
+        if batch_idx % cfg.LOG_FREQ == 0:
+            MetricLogger.val_loss_batch(loss.item())
 
         loop.set_postfix(
             loss=loss
@@ -157,7 +163,6 @@ if __name__ == '__main__':
     # Split KFold
     train_df = split_data_kfold(train_df)
     test_df['file_path'] = test_df['id'].apply(get_test_file_path)
-    # TODO add specify version
     # TODO add metrics for batches
     # TODO add TPU
     # TODO version name arg

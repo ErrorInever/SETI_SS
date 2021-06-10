@@ -32,7 +32,19 @@ class MetricLogger:
 
     def log(self, avg_train_loss, avg_val_loss, auc_score):
         wandb.log({
-            'avg_train_loss': avg_train_loss,
-            'avg_val_loss': avg_val_loss,
-            'auc_score': auc_score
+            'avg_epoch_train_loss': avg_train_loss,
+            'avg_epoch_val_loss': avg_val_loss,
+            'roc_auc_score': auc_score
+        })
+
+    @staticmethod
+    def train_loss_batch(t_loss):
+        wandb.log({
+            'batch_train_loss': t_loss
+        })
+
+    @staticmethod
+    def val_loss_batch(v_loss):
+        wandb.log({
+            'batch_val_loss': v_loss
         })
