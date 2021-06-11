@@ -126,13 +126,17 @@ if __name__ == '__main__':
     else:
         project_version = 'efficient_net'
 
-    if args.load_model:
-        cfg.LOAD_MODEL = True
-        model_file_name = args.load_model
-
     if args.model_version:
         assert args.model_version in cfg.EFFICIENT_VERSIONS, 'incorrect model version'
         cfg.EFFICIENT_VERSIONS = [args.model_version]
+
+    if args.load_model:
+        if not args.model_version:
+            raise ValueError('load model version not specified')
+        else:
+            cfg.LOAD_MODEL = True
+            model_file_name = args.load_model
+            cfg.EFFICIENT_VERSIONS = [args.model_version]
 
     if args.wandb_key:
         os.environ["WANDB_API_KEY"] = args.wandb_key
