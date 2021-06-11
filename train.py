@@ -173,11 +173,10 @@ if __name__ == '__main__':
     # Split KFold
     train_df = split_data_kfold(train_df)
     test_df['file_path'] = test_df['id'].apply(get_test_file_path)
-    # TODO add TPU
-    for version in cfg.EFFICIENT_VERSIONS:
 
+    for version in cfg.EFFICIENT_VERSIONS:
         cfg.PROJECT_VERSION_NAME = f'{project_version}_{version}'
-        # defining model version
+        # defining model
         if cfg.LOAD_MODEl:
             model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
             cp = torch.load(model_file_name, map_location=device)

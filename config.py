@@ -25,13 +25,13 @@ __C.WEIGHT_DECAY = 1e-6
 __C.BETAS = (0.0, 0.99)
 
 # SCHEDULER
-__C.SCHEDULER_VERSION = 'ReduceLROnPlateau'     # [ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts]
+__C.SCHEDULER_VERSION = 'CosineAnnealingWarmRestarts'   # [ReduceLROnPlateau, # CosineAnnealingLR, # CosineAnnealingWarmRestarts]
 __C.FACTOR = 0.2
 __C.PATIENCE = 4
 __C.EPS = 1e-6
 __C.T_MAX = 6
 __C.MIN_LR = 1e-6
-__C.T_0 = 6
+__C.T_0 = 10     # scheduler restarts after Ti epochs.
 # DATA
 __C.N_FOLD = 4
 
