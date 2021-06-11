@@ -33,6 +33,7 @@ def parse_args():
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
                                                               'input api key', default=None, type=str)
+    parser.add_argument('--n_fold', dest='n_fold', help='Number of Kfolds', default=None, type=int)
     parser.print_help()
     return parser.parse_args()
 
@@ -142,6 +143,10 @@ if __name__ == '__main__':
         os.environ["WANDB_API_KEY"] = args.wandb_key
     if args.wandb_id:
         cfg.WANDB_ID = args.wandb_id
+
+    if args.n_fold:
+        assert args.n_fold > 4, 'n_fold should be <= 4'
+        cfg.N_FOLD = args.n_fold
 
     logger.info(f'Start {__name__} at {time.ctime()}')
     logger.info(f'Called with args: {args.__dict__}')
