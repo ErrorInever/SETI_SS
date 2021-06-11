@@ -226,11 +226,11 @@ if __name__ == '__main__':
                 elif isinstance(scheduler, CosineAnnealingWarmRestarts):
                     scheduler.step()
                 # metric
-                roc_auc_score = roc_auc_score(val_labels, preds)
-                metric_logger.log(avg_loss, avg_val_loss, roc_auc_score)
+                auc_score = roc_auc_score(val_labels, preds)
+                metric_logger.log(avg_loss, avg_val_loss, auc_score)
                 # save model
-                if roc_auc_score > best_score:
-                    best_score = roc_auc_score
+                if auc_score > best_score:
+                    best_score = auc_score
                     logger.info(f"Fined the best score {best_score:.4f}: EPOCH {epoch}")
                     logger.info(f"Save model to {cfg.OUTPUT_DIR}")
                     torch.save({
