@@ -8,14 +8,20 @@ from config import cfg
 
 class SETIDataset(Dataset):
     """SETI dataset"""
-    def __init__(self, df, transform=None):
+    def __init__(self, df, transform=None, resize=None):
         self.df = df
         self.cad_ids = df['id'].values
         self.cad_paths = df['file_path'].values
         self.cad_labels = df['target'].values
 
         self.train_transform = transform
+        self.resize = resize
+
         self._transform = A.Compose([
+            A.Resize(cfg.IMG_SIZE, cfg.IMG_SIZE),
+            ToTensorV2()
+        ])
+        self._resize_to_tensor = A.Compose([
             A.Resize(cfg.IMG_SIZE, cfg.IMG_SIZE),
             ToTensorV2()
         ])
@@ -33,6 +39,8 @@ class SETIDataset(Dataset):
         image = np.vstack(image).transpose((1, 0))
         if self.train_transform:
             image = self.transform(image=image)['image']
+        elif self.resize:
+            image = self.resize_to_tensor(image=image)['image']
         else:
             image = image[np.newaxis, :, :]
             image = torch.from_numpy(image).float()
@@ -42,3 +50,7 @@ class SETIDataset(Dataset):
     @property
     def transform(self):
         return self._transform
+
+    @property
+    def resize_to_tensor(self):
+        return self._resize_to_tensor
