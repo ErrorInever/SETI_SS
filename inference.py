@@ -55,7 +55,7 @@ if __name__ == '__main__':
     if args.device == 'gpu':
         device = torch.device('cuda')
     model = EfficientNet(args.model_version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
-    cp = torch.load(args.load_model, map_location=args.device)
+    cp = torch.load(args.load_model, map_location=device)
     model.load_state_dict(cp['model'])
     logger.info(f"model loaded from {args.load_model}")
 
