@@ -41,7 +41,7 @@ __C.WANDB_ID = None
 __C.RESUME_ID = None
 __C.SAVE_EPOCH_FREQ = 10
 __C.LOAD_MODEL = False
-__C.LOG_FREQ = 100
+__C.LOG_FREQ = 20
 
 __C.DATA_ROOT = None
 __C.OUTPUT_DIR = './'
