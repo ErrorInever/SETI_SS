@@ -13,7 +13,7 @@ from tqdm import tqdm
 from models.effecient import EfficientNet
 from data.dataset import SETIDataset
 from torch.utils.data import DataLoader
-from utils import (seed_everything, get_train_file_path, get_test_file_path, get_scheduler, AverageMeter,
+from utils import (seed_everything, get_train_file_path, get_scheduler, AverageMeter,
                    split_data_kfold)
 from config import cfg
 from metric_logger import MetricLogger
@@ -168,15 +168,10 @@ if __name__ == '__main__':
     # define dataset
     data_root = args.data_path
     train_path = os.path.join(data_root, 'train_labels.csv')
-    test_path = os.path.join(data_root, 'sample_submission.csv')
-
     train_df = pd.read_csv(train_path)
-    test_df = pd.read_csv(test_path)
-
     train_df['file_path'] = train_df['id'].apply(get_train_file_path)
     # Split KFold
     train_df = split_data_kfold(train_df)
-    test_df['file_path'] = test_df['id'].apply(get_test_file_path)
 
     for version in cfg.EFFICIENT_VERSIONS:
         cfg.PROJECT_VERSION_NAME = f'{project_version}_{version}'
