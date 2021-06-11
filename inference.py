@@ -52,7 +52,9 @@ if __name__ == '__main__':
 
     logger = logging.getLogger('main')
 
-    model = EfficientNet(args.model_version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(args.device)
+    if args.device == 'gpu':
+        device = torch.device('cuda')
+    model = EfficientNet(args.model_version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
     cp = torch.load(args.load_model, map_location=args.device)
     model.load_state_dict(cp['model'])
     logger.info(f"model loaded from {args.load_model}")
@@ -65,7 +67,7 @@ if __name__ == '__main__':
     test_dataset = SETIDataset(test_df, resize=True)
     test_dataloader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True)
 
-    predictions = inference(model, test_dataloader, args.device)
+    predictions = inference(model, test_dataloader, device)
 
     test_df['target'] = predictions
     test_df[['id', 'target']].to_csv('submission.csv', index=False)
