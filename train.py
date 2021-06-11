@@ -176,7 +176,7 @@ if __name__ == '__main__':
     for version in cfg.EFFICIENT_VERSIONS:
         cfg.PROJECT_VERSION_NAME = f'{project_version}_{version}'
         # defining model
-        if cfg.LOAD_MODEl:
+        if cfg.LOAD_MODEL:
             model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
             cp = torch.load(model_file_name, map_location=device)
             model.load_state_dict(cp['model'])
