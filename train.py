@@ -28,6 +28,8 @@ def parse_args():
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default use gpu if available',
                         default='gpu', type=str)
     parser.add_argument('--version_name', dest='version_name', help='Version name for wandb', default=None, type=str)
+    parser.add_argument('--model_version', dest='model_version', help='Specified version of model', default=None,
+                        type=str)
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
                                                               'input api key', default=None, type=str)
@@ -124,6 +126,14 @@ if __name__ == '__main__':
     else:
         project_version = 'efficient_net'
 
+    if args.load_model:
+        cfg.LOAD_MODEL = True
+        model_file_name = args.load_model
+
+    if args.model_version:
+        assert args.model_version in cfg.EFFICIENT_VERSIONS, 'incorrect model version'
+        cfg.EFFICIENT_VERSIONS = [args.model_version]
+
     if args.wandb_key:
         os.environ["WANDB_API_KEY"] = args.wandb_key
     if args.wandb_id:
@@ -163,20 +173,22 @@ if __name__ == '__main__':
     # Split KFold
     train_df = split_data_kfold(train_df)
     test_df['file_path'] = test_df['id'].apply(get_test_file_path)
-    # TODO add metrics for batches
     # TODO add TPU
-    # TODO version name arg
-    # TODO display K FOLDS
-    # TODO load data
     for version in cfg.EFFICIENT_VERSIONS:
 
         cfg.PROJECT_VERSION_NAME = f'{project_version}_{version}'
         # defining model version
-        model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
-        logger.info(f'init model version {version}')
+        if cfg.LOAD_MODEl:
+            model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
+            cp = torch.load(model_file_name, map_location=device)
+            model.load_state_dict(cp['model'])
+            logger.info(f"model loaded from {model_file_name}")
+        else:
+            model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
+            logger.info(f'init default model version {version}')
 
         for fold in range(cfg.N_FOLD):
-
+            logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')
             train_idxs = train_df[train_df['fold'] != fold].index
             val_idxs = train_df[train_df['fold'] == fold].index
 
@@ -235,3 +247,10 @@ if __name__ == '__main__':
                         'model': model.state_dict(),
                         'preds': preds
                     }, cfg.OUTPUT_DIR + f"efficient_{version}_best_val_loss.pth.tar")
+
+                if epoch % cfg.SAVE_EPOCH_FREQ == 0:
+                    logger.info(f"Save model epoch {epoch}")
+                    torch.save({
+                        'model': model.state_dict(),
+                        'preds': preds
+                    }, cfg.OUTPUT_DIR + f"efficient_{version}_epoch_{epoch}.pth.tar")

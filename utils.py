@@ -53,7 +53,6 @@ def split_data_kfold(df):
     return df
 
 
-
 def get_train_file_path(image_id):
     return "{}/train/{}/{}.npy".format(cfg.DATA_ROOT, image_id[0], image_id)
 
