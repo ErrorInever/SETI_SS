@@ -215,7 +215,7 @@ if __name__ == '__main__':
             best_loss = np.inf
             for epoch in range(cfg.NUM_EPOCHS):
                 # train model
-                avg_loss = train_one_epoch(model, optimizer, scheduler, criterion, train_dataloader, device)
+                avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, device)
                 # evaluate model
                 avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, device)
 
