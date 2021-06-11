@@ -145,7 +145,7 @@ if __name__ == '__main__':
         cfg.WANDB_ID = args.wandb_id
 
     if args.n_fold:
-        assert args.n_fold <= 4, 'n_fold should be <= 4'
+        assert 2 <= args.n_fold <= 4, 'n_fold should be <= 4'
         cfg.N_FOLD = args.n_fold
 
     logger.info(f'Start {__name__} at {time.ctime()}')
