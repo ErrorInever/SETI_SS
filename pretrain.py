@@ -17,7 +17,7 @@ from utils import (seed_everything, get_train_file_path, get_scheduler, AverageM
 from config import cfg
 from metric_logger import MetricLogger
 from sklearn.metrics import roc_auc_score
-from models.pretrained_models import EfficientNetP, NFNETL0, WideResnet50
+from models.pretrained_models import EfficientNetP, NFNETL0, WideResnet50, get_model
 
 
 def parse_args():
@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--out_dir', dest='out_dir', help='Path where to save files', default=None, type=str)
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default use gpu if available',
                         default='gpu', type=str)
+    parser.add_argument('--cur_model', dest='cur_model', help='train only one model(specified)', default=None, type=str)
     parser.add_argument('--version_name', dest='version_name', help='Version name for wandb', default=None, type=str)
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
@@ -114,6 +115,7 @@ if __name__ == '__main__':
 
     assert args.data_path, 'data path not specified'
     assert args.device in ['gpu', 'tpu'], 'incorrect device type'
+    assert args.cur_model in ['wide_resnet50_2', 'efficientnet', 'nfnet_l0'], 'incorrect model name'
 
     cfg.DATA_ROOT = args.data_path
     logger = logging.getLogger('main')
@@ -123,10 +125,16 @@ if __name__ == '__main__':
     else:
         project_version = 'unnamed model'
 
+    if args.cur_model:
+        model_name = args.cur_model
+
     if args.wandb_key:
         os.environ["WANDB_API_KEY"] = args.wandb_key
     if args.wandb_id:
         cfg.WANDB_ID = args.wandb_id
+
+    if args.out_dir:
+        cfg.OUTPUT_DIR = args.out_dir
 
     logger.info(f'Start {__name__} at {time.ctime()}')
     logger.info(f'Called with args: {args.__dict__}')
@@ -145,11 +153,15 @@ if __name__ == '__main__':
     # Split KFold
     train_df = split_data_kfold(train_df)
 
-    model_list = ['wide_resnet50_2', 'efficientnet_b0', 'nfnet_l0']
+    if args.cur_model:
+        model_list = [args.cur_model]
+    else:
+        model_list = ['wide_resnet50_2', 'efficientnet', 'nfnet_l0']
 
     for i, name_model in enumerate(model_list):
-        logger.info(f"Start experiment №{i}: model {name_model}")
-        model = EfficientNetP('b0').to(device)
+        logger.info(f"Start experiment №{i} of {len(model_list)} - Current model name {name_model}")
+
+        model = get_model(name_model).to(device)
 
         oof_df = pd.DataFrame()
         for fold in range(cfg.N_FOLD):
