@@ -219,14 +219,14 @@ if __name__ == '__main__':
                     logger.info(f"Found the best roc_auc_score, save model to {save_path}")
                 if avg_val_loss < best_loss:
                     best_loss = avg_val_loss
-                    save_path = cfg.OUTPUT_DIR + f"{cfg.name_model}_fold{fold}_best_val_loss.pth.tar"
+                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold{fold}_best_val_loss.pth.tar"
                     torch.save({
                         'model': model.state_dict(),
                         'preds': preds
                     }, save_path)
                     logger.info(f"Found the best validation loss, save model to {save_path}")
 
-            val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{cfg.name_model}_fold{fold}_best_val_loss.pth.tar",
+            val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{name_model}_fold{fold}_best_val_loss.pth.tar",
                                             map_location=torch.device("cpu"))['preds']
 
             oof_df = pd.concat([oof_df, val_folds['preds']])
