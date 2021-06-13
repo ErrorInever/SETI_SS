@@ -16,7 +16,7 @@ __C.USE_APEX = True
 __C.NUM_CLASSES = 1
 __C.EFFICIENT_VERSIONS = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7']
 __C.IMG_SIZE = 224
-__C.NUM_EPOCHS = 1
+__C.NUM_EPOCHS = 4
 __C.LEARNING_RATE = 1e-4
 __C.BATCH_SIZE = 64
 
@@ -34,6 +34,7 @@ __C.MIN_LR = 1e-6
 __C.T_0 = 10     # scheduler restarts after Ti epochs.
 # DATA
 __C.N_FOLD = 4
+__C.TRN_FOLD = [0, 1, 2, 3]
 
 __C.SAVE = True
 # DISPLAY RESULTS
@@ -41,6 +42,7 @@ __C.WANDB_ID = None
 __C.RESUME_ID = None
 __C.SAVE_EPOCH_FREQ = 10
 __C.LOAD_MODEL = False
+__C.PRETRAINED_MODEL = False
 __C.LOG_FREQ = 20
 
 __C.DATA_ROOT = None
