@@ -211,7 +211,7 @@ if __name__ == '__main__':
 
                 if auc_score > best_score:
                     best_score = auc_score
-                    save_path = cfg.OUTPUT_DIR + f"{cfg.name_model}_fold{fold}_best_roc_auc.pth.tar"
+                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold{fold}_best_roc_auc.pth.tar"
                     torch.save({
                         'model': model.state_dict(),
                         'preds': preds
