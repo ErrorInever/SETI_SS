@@ -1,10 +1,14 @@
 import random
+import logging
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import roc_auc_score
 from config import cfg
+
+logger = logging.getLogger(__name__)
 
 
 def seed_everything(seed):
@@ -29,6 +33,7 @@ def show_cadence(idx, path, label):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -50,6 +55,7 @@ def split_data_kfold(df):
     for n, (train_idx, val_idx) in enumerate(fold.split(df, df['target'])):
         df.loc[val_idx, 'fold'] = int(n)
     df['fold'] = df['fold'].astype(int)
+    logger.info(df.groupby(['fold', 'target']).size())
     return df
 
 
@@ -72,3 +78,10 @@ def get_scheduler(optimizer):
     else:
         raise ValueError('SCHEDULER WAS NOT DEFINED')
     return scheduler
+
+
+def print_result(result_df):
+    preds = result_df['preds'].values
+    labels = result_df['target'].values
+    score = roc_auc_score(labels, preds)
+    logger.info(f'Score: {score:<.4f}')
