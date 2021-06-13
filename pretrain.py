@@ -77,7 +77,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
             MetricLogger.train_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
-            loss=loss
+            loss=loss.item()
         )
 
     return losses.avg
@@ -102,7 +102,7 @@ def eval_one_epoch(model, criterion, dataloader, device, epoch):
             MetricLogger.val_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
-            loss=loss
+            loss=loss.item()
         )
 
     predictions = np.concatenate(preds)
