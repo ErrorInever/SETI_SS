@@ -38,13 +38,21 @@ class MetricLogger:
         })
 
     @staticmethod
-    def train_loss_batch(t_loss):
+    def train_loss_batch(t_loss, epoch, num_batches, batch_idx):
+        step = MetricLogger._step(epoch, num_batches, batch_idx)
         wandb.log({
-            'batch_train_loss': t_loss
+            'batch_train_loss': t_loss,
+            'step': step
         })
 
     @staticmethod
-    def val_loss_batch(v_loss):
+    def val_loss_batch(v_loss, epoch, num_batches, batch_idx):
+        step = MetricLogger._step(epoch, num_batches, batch_idx)
         wandb.log({
-            'batch_val_loss': v_loss
+            'batch_val_loss': v_loss,
+            'step': step
         })
+
+    @staticmethod
+    def _step(epoch, num_batches, batch_idx):
+        return epoch * num_batches + batch_idx
