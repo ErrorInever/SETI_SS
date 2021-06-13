@@ -34,7 +34,7 @@ __C.MIN_LR = 1e-6
 __C.T_0 = 10     # scheduler restarts after Ti epochs.
 # DATA
 __C.N_FOLD = 4
-__C.TRN_FOLD = [0, 1, 2, 3]
+__C.TRN_FOLD = [i for i in range(__C.N_FOLD)]
 
 __C.SAVE = True
 # DISPLAY RESULTS
