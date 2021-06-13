@@ -17,7 +17,7 @@ from utils import (seed_everything, get_train_file_path, get_scheduler, AverageM
 from config import cfg
 from metric_logger import MetricLogger
 from sklearn.metrics import roc_auc_score
-from models.pretrained_models import EfficientNetP, NFNETL0, WideResnet50, get_model
+from models.pretrained_models import get_model
 
 
 def parse_args():
@@ -35,7 +35,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def train_one_epoch(model, optimizer, criterion, dataloader, device):
+def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
     """
     :param model: model
     :param optimizer: optimizer
@@ -74,7 +74,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device):
         optimizer.zero_grad()
 
         if batch_idx % cfg.LOG_FREQ == 0:
-            MetricLogger.train_loss_batch(loss.item())
+            MetricLogger.train_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
             loss=loss
@@ -83,7 +83,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device):
     return losses.avg
 
 
-def eval_one_epoch(model, criterion, dataloader, device):
+def eval_one_epoch(model, criterion, dataloader, device, epoch):
     model.eval()
     losses = AverageMeter()
     preds = []
@@ -99,7 +99,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
         if batch_idx % cfg.LOG_FREQ == 0:
-            MetricLogger.val_loss_batch(loss.item())
+            MetricLogger.val_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
             loss=loss
@@ -169,7 +169,6 @@ if __name__ == '__main__':
             val_idxs = train_df[train_df['fold'] == fold].index
             train_folds = train_df.loc[train_idxs].reset_index(drop=True)
             val_folds = train_df.loc[val_idxs].reset_index(drop=True)
-            # y targets
             val_labels = val_folds['target'].values
 
             train_dataset = SETIDataset(train_folds, transform=True)
@@ -192,9 +191,9 @@ if __name__ == '__main__':
             best_loss = np.inf
             for epoch in range(cfg.NUM_EPOCHS):
                 # train model
-                avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, device)
+                avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, device, epoch)
                 # evaluate model
-                avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, device)
+                avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, device, epoch)
 
                 if isinstance(scheduler, ReduceLROnPlateau):
                     scheduler.step(avg_val_loss)
