@@ -21,7 +21,7 @@ from sklearn.metrics import roc_auc_score
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='SLE-GC-GAN')
+    parser = argparse.ArgumentParser(description='EfficientNet')
     parser.add_argument('--data_path', dest='data_path', help='Path to dataset folder', default=None, type=str)
     parser.add_argument('--out_dir', dest='out_dir', help='Path where to save files', default=None, type=str)
     parser.add_argument('--load_model', dest='load_model', help='Path to model.pth.tar', default=None, type=str)
