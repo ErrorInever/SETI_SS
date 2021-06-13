@@ -29,7 +29,7 @@ class EfficientNetP(nn.Module):
 
 
 class NFNETL0(nn.Module):
-    def __init__(self, pretrained=False):
+    def __init__(self, pretrained=True):
         super().__init__()
         self.model = timm.create_model('nfnet_l0', pretrained=pretrained, in_chans=1)
         self.n_features = self.model.head.fc.in_features
@@ -37,3 +37,14 @@ class NFNETL0(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+
+def get_model(model_name, version='b0'):
+    if model_name == 'efficientnet':
+        if version in cfg.EFFICIENT_VERSIONS:
+            return EfficientNetP(version)
+    elif model_name == 'wide_resnet50_2':
+        return WideResnet50()
+    elif model_name == 'nfnet_l0':
+        return NFNETL0()
+
