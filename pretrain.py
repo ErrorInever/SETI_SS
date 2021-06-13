@@ -122,6 +122,7 @@ if __name__ == '__main__':
 
     if args.version_name:
         project_version = args.version_name
+        cfg.PROJECT_VERSION_NAME = project_version
     else:
         project_version = 'unnamed model'
 
