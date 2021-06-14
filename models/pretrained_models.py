@@ -39,12 +39,12 @@ class NFNETL0(nn.Module):
         return self.model(x)
 
 
-def get_model(model_name, version='b0'):
+def get_model(model_name, version='b0', pretrained=True):
     if model_name == 'efficientnet':
         if version in cfg.EFFICIENT_VERSIONS:
-            return EfficientNetP(version)
+            return EfficientNetP(version, pretrained=pretrained)
     elif model_name == 'wide_resnet50_2':
-        return WideResnet50()
+        return WideResnet50(pretrained=pretrained)
     elif model_name == 'nfnet_l0':
-        return NFNETL0()
+        return NFNETL0(pretrained=pretrained)
 
