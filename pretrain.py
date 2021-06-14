@@ -229,11 +229,12 @@ if __name__ == '__main__':
             val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{name_model}_fold{fold}_best_val_loss.pth.tar",
                                             map_location=torch.device("cpu"))['preds']
 
-            oof_df = pd.concat([oof_df, val_folds['preds']])
+            _oof_df = val_folds['preds']
+            oof_df = pd.concat([oof_df, _oof_df])
 
             logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')
             # Best epoch result
-            print_result(val_folds)
+            print_result(_oof_df)
 
         # best from all folds
         logger.info("=========== CROSS-VALIDATION SCORE ===========")
