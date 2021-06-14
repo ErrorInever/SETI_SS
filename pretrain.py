@@ -233,7 +233,7 @@ if __name__ == '__main__':
 
             logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')
             # Best epoch result
-            print_result(val_folds['preds'])
+            print_result(val_folds)
 
         # best from all folds
         logger.info("=========== CROSS-VALIDATION SCORE ===========")
