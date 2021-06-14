@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--data_path', dest='data_path', help='Path to dataset folder', default=None, type=str)
     parser.add_argument('--out_dir', dest='out_dir', help='Path where to save files', default=None, type=str)
     parser.add_argument('--cur_model', dest='cur_model', help='inference specified model', default=None, type=str)
+    parser.add_argument('--model_dir', dest='model_dir', help='dir where states stored', default=None, type=str)
     parser.add_argument('--load_model', dest='load_model', help='Path to model.pth.tar', default=None, type=str)
     parser.add_argument('--model_version', dest='model_version', help='Specified version of model', default=None,
                     type=str)
@@ -58,6 +59,11 @@ if __name__ == '__main__':
     if args.cur_model:
         model_name = args.cur_model
 
+    if args.model_dir:
+        model_dir = args.model_dir
+    else:
+        model_dir cfg.OUTPUT_DIR
+
     cfg.DATA_ROOT = args.data_path
 
     logger = logging.getLogger('inference')
@@ -85,7 +91,7 @@ if __name__ == '__main__':
         logger.info(f"Start inference №{i} of {len(model_list)} - Current model name {name_model}")
 
         model = get_model(name_model, pretrained=False)
-        states = [torch.load(cfg.OUTPUT_DIR+f"{name_model}_fold{fold}_best_val_loss.pth.tar") for fold in cfg.TRN_FOLD]
+        states = [torch.load(model_dir+f"{name_model}_fold{fold}_best_val_loss.pth.tar") for fold in cfg.TRN_FOLD]
         logger.info(f"States list: {states}")
 
         test_dataset = SETIDataset(test_df, resize=True)
