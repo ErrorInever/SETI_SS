@@ -13,7 +13,7 @@ from tqdm import tqdm
 from data.dataset import SETIDataset
 from torch.utils.data import DataLoader
 from utils import (seed_everything, get_train_file_path, get_scheduler, AverageMeter,
-                   split_data_kfold, print_result)
+                   split_data_kfold, print_result, save_checkpoint)
 from config import cfg
 from metric_logger import MetricLogger
 from sklearn.metrics import roc_auc_score
@@ -27,11 +27,13 @@ def parse_args():
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default use gpu if available',
                         default='gpu', type=str)
     parser.add_argument('--cur_model', dest='cur_model', help='train only one model(specified)', default=None, type=str)
+    parser.add_argument('--ckpt', dest='ckpt', help='load checkpoint', default=None, type=str)
     parser.add_argument('--version_name', dest='version_name', help='Version name for wandb', default=None, type=str)
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
                                                               'input api key', default=None, type=str)
-    parser.add_argument('--test_epoch', dest='test_epoch', help='one epoch for test', action='store_true')
+    parser.add_argument('--test_epoch', dest='test_epoch', help='train one epoch for test', action='store_true')
+
     parser.print_help()
     return parser.parse_args()
 
@@ -215,25 +217,20 @@ if __name__ == '__main__':
 
                 if auc_score > best_score:
                     best_score = auc_score
-                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold{fold}_best_roc_auc.pth.tar"
-                    torch.save({
-                        'model': model.state_dict(),
-                        'preds': preds
-                    }, save_path)
+                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_roc_auc.pth.tar"
+                    save_checkpoint(save_path, model, preds, epoch)
                     logger.info(f"Found the best roc_auc_score, save model to {save_path}")
                 if avg_val_loss < best_loss:
                     best_loss = avg_val_loss
-                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold{fold}_best_val_loss.pth.tar"
-                    torch.save({
-                        'model': model.state_dict(),
-                        'preds': preds
-                    }, save_path)
+                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_val_loss.pth.tar"
+                    save_checkpoint(save_path, model, preds, epoch)
                     logger.info(f"Found the best validation loss, save model to {save_path}")
 
-            val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{name_model}_fold{fold}_best_val_loss.pth.tar",
+            val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_val_loss.pth.tar",
                                             map_location=torch.device("cpu"))['preds']
 
             _oof_df = val_folds['preds']
+            logger.info(_oof_df.head())
             oof_df = pd.concat([oof_df, _oof_df])
 
             logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')

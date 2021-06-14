@@ -85,3 +85,11 @@ def print_result(result_df):
     labels = result_df['target'].values
     score = roc_auc_score(labels, preds)
     logger.info(f'Score: {score:<.4f}')
+
+
+def save_checkpoint(save_path, model, preds, epoch):
+    torch.save({
+        'model': model.state_dict(),
+        'preds': preds,
+        'start_epoch': epoch + 1
+    }, save_path)

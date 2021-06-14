@@ -73,9 +73,9 @@ if __name__ == '__main__':
     elif args.device == 'cpu':
         device = torch.device('cpu')
 
-    # oof = pd.read_csv(cfg.OUTPUT_DIR + 'oof_df.csv')
-    # logger.info("Loaded oof")
-    # print_result(oof)
+    oof = pd.read_csv(cfg.OUTPUT_DIR + 'oof_df.csv')
+    logger.info("Loaded oof with score")
+    print_result(oof)
 
     data_root = args.data_path
     test_path = os.path.join(data_root, 'sample_submission.csv')
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         logger.info(f"Start inference №{i} of {len(model_list)} - Current model name {name_model}")
 
         model = get_model(name_model, pretrained=False)
-        states = [torch.load(model_dir+f"{name_model}_fold{fold}_best_val_loss.pth.tar") for fold in cfg.TRN_FOLD]
+        states = [torch.load(model_dir+f"{name_model}_fold_{fold}_best_val_loss.pth.tar") for fold in cfg.TRN_FOLD]
 
         test_dataset = SETIDataset(test_df, resize=True)
         test_dataloader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True)
