@@ -92,7 +92,6 @@ if __name__ == '__main__':
 
         model = get_model(name_model, pretrained=False)
         states = [torch.load(model_dir+f"{name_model}_fold{fold}_best_val_loss.pth.tar") for fold in cfg.TRN_FOLD]
-        logger.info(f"States list: {states}")
 
         test_dataset = SETIDataset(test_df, resize=True)
         test_dataloader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True)
