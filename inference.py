@@ -62,7 +62,7 @@ if __name__ == '__main__':
     if args.model_dir:
         model_dir = args.model_dir
     else:
-        model_dir cfg.OUTPUT_DIR
+        model_dir = cfg.OUTPUT_DIR
 
     cfg.DATA_ROOT = args.data_path
 
