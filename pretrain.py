@@ -229,7 +229,7 @@ if __name__ == '__main__':
             val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_val_loss.pth.tar",
                                             map_location=torch.device("cpu"))['preds']
 
-            _oof_df = val_folds['preds']
+            _oof_df = val_folds
             logger.info(_oof_df.head())
             oof_df = pd.concat([oof_df, _oof_df])
 
