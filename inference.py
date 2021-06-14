@@ -67,9 +67,9 @@ if __name__ == '__main__':
     elif args.device == 'cpu':
         device = torch.device('cpu')
 
-    oof = pd.read_csv(cfg.OUTPUT_DIR + 'oof_df.csv')
-    logger.info("Loaded oof")
-    print_result(oof)
+    # oof = pd.read_csv(cfg.OUTPUT_DIR + 'oof_df.csv')
+    # logger.info("Loaded oof")
+    # print_result(oof)
 
     data_root = args.data_path
     test_path = os.path.join(data_root, 'sample_submission.csv')
