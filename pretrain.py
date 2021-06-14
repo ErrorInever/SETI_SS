@@ -230,7 +230,6 @@ if __name__ == '__main__':
                                             map_location=torch.device("cpu"))['preds']
 
             _oof_df = val_folds
-            logger.info(_oof_df.head())
             oof_df = pd.concat([oof_df, _oof_df])
 
             logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')
