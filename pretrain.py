@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
                                                               'input api key', default=None, type=str)
+    parser.add_argument('--test_epoch', dest='test_epoch', help='one epoch for test', action='store_true')
     parser.print_help()
     return parser.parse_args()
 
@@ -136,6 +137,9 @@ if __name__ == '__main__':
 
     if args.out_dir:
         cfg.OUTPUT_DIR = args.out_dir
+
+    if args.test_epoch:
+        cfg.NUM_EPOCHS = 1
 
     logger.info(f'Start {__name__} at {time.ctime()}')
     logger.info(f'Called with args: {args.__dict__}')
