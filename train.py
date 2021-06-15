@@ -38,7 +38,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
+def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, device, epoch):
     """
     :param model: model
     :param optimizer: optimizer
@@ -77,7 +77,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
         optimizer.zero_grad()
 
         if batch_idx % cfg.LOG_FREQ == 0:
-            MetricLogger.train_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
+            metric_logger.train_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
             loss=loss.item()
@@ -86,7 +86,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
     return losses.avg
 
 
-def eval_one_epoch(model, criterion, dataloader, device, epoch):
+def eval_one_epoch(model, criterion, dataloader, metric_logger, device, epoch):
     model.eval()
     losses = AverageMeter()
     preds = []
@@ -102,7 +102,7 @@ def eval_one_epoch(model, criterion, dataloader, device, epoch):
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
         if batch_idx % cfg.LOG_FREQ == 0:
-            MetricLogger.val_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
+            metric_logger.val_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
             loss=loss.item()
@@ -211,9 +211,9 @@ if __name__ == '__main__':
             best_loss = np.inf
             for epoch in range(start_epoch, cfg.NUM_EPOCHS):
                 # train model
-                avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, device, epoch)
+                avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, metric_logger,  device, epoch)
                 # evaluate model
-                avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, device, epoch)
+                avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, metric_logger, device, epoch)
 
                 if isinstance(scheduler, ReduceLROnPlateau):
                     scheduler.step(avg_val_loss)

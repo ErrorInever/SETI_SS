@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 class MetricLogger:
     """Metric class"""
     def __init__(self, version):
+        self.train_step = 0
+        self.val_step = 0
         if cfg.RESUME_ID:
             wandb_id = cfg.WANDB_ID
         else:
@@ -37,20 +39,18 @@ class MetricLogger:
             'roc_auc_score': auc_score
         })
 
-    @staticmethod
-    def train_loss_batch(t_loss, epoch, num_batches, batch_idx):
-        step = MetricLogger._step(epoch, num_batches, batch_idx)
+    def train_loss_batch(self, t_loss, epoch, num_batches, batch_idx):
+        self.train_step += MetricLogger._step(epoch, num_batches, batch_idx)
         wandb.log({
             'batch_train_loss': t_loss,
-            'step': step
+            'step': self.train_step
         })
 
-    @staticmethod
-    def val_loss_batch(v_loss, epoch, num_batches, batch_idx):
-        step = MetricLogger._step(epoch, num_batches, batch_idx)
+    def val_loss_batch(self, v_loss, epoch, num_batches, batch_idx):
+        self.val_step += MetricLogger._step(epoch, num_batches, batch_idx)
         wandb.log({
             'batch_val_loss': v_loss,
-            'step': step
+            'step': self.val_step
         })
 
     @staticmethod
