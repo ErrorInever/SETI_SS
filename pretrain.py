@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default use gpu if available',
                         default='gpu', type=str)
     parser.add_argument('--cur_model', dest='cur_model', help='train only one model(specified)', default=None, type=str)
-    parser.add_argument('--ckpt', dest='ckpt', help='load checkpoint', default=None, type=str)
+    parser.add_argument('--ckpt', dest='ckpt', help='path to model statedict.pth.tar', default=None, type=str)
     parser.add_argument('--version_name', dest='version_name', help='Version name for wandb', default=None, type=str)
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
@@ -167,8 +167,21 @@ if __name__ == '__main__':
 
     for i, name_model in enumerate(model_list):
         logger.info(f"Start experiment №{i} of {len(model_list)} - Current model name {name_model}")
-
-        model = get_model(name_model).to(device)
+        # resume training
+        if args.ckpt:
+            try:
+                model = get_model(name_model).to(device)
+                state = torch.load(args.ckpt)
+                model.load_state_dict(state['model'])
+                start_epoch = state(['start_epoch'])
+                logger.info(f"resume training, start_epoch {start_epoch}")
+            except ValueError:
+                logger.error("incorrect type or path of model")
+                break
+        else:
+            model = get_model(name_model).to(device)
+            start_epoch = 0
+            logger.info(f"load default weights")
 
         oof_df = pd.DataFrame()
         for fold in range(cfg.N_FOLD):
@@ -196,7 +209,7 @@ if __name__ == '__main__':
 
             best_score = 0.
             best_loss = np.inf
-            for epoch in range(cfg.NUM_EPOCHS):
+            for epoch in range(start_epoch, cfg.NUM_EPOCHS):
                 # train model
                 avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, device, epoch)
                 # evaluate model
