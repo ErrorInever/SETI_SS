@@ -11,7 +11,6 @@ from data.dataset import SETIDataset
 from models.pretrained_models import get_model
 from utils import seed_everything, get_test_file_path, print_result
 from config import cfg
-from models.effecient import EfficientNet
 
 
 def parse_args():

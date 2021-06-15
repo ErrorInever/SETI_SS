@@ -10,35 +10,35 @@ import torch.optim as optim
 from torch.cuda.amp import GradScaler
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts
 from tqdm import tqdm
-from models.effecient import EfficientNet
 from data.dataset import SETIDataset
 from torch.utils.data import DataLoader
 from utils import (seed_everything, get_train_file_path, get_scheduler, AverageMeter,
-                   split_data_kfold)
+                   split_data_kfold, print_result, save_checkpoint)
 from config import cfg
 from metric_logger import MetricLogger
 from sklearn.metrics import roc_auc_score
+from models.pretrained_models import get_model
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='EfficientNet')
+    parser = argparse.ArgumentParser(description='Pretrained model experminet')
     parser.add_argument('--data_path', dest='data_path', help='Path to dataset folder', default=None, type=str)
     parser.add_argument('--out_dir', dest='out_dir', help='Path where to save files', default=None, type=str)
-    parser.add_argument('--load_model', dest='load_model', help='Path to model.pth.tar', default=None, type=str)
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default use gpu if available',
                         default='gpu', type=str)
+    parser.add_argument('--cur_model', dest='cur_model', help='train only one model(specified)', default=None, type=str)
+    parser.add_argument('--ckpt', dest='ckpt', help='path to model statedict.pth.tar', default=None, type=str)
     parser.add_argument('--version_name', dest='version_name', help='Version name for wandb', default=None, type=str)
-    parser.add_argument('--model_version', dest='model_version', help='Specified version of model', default=None,
-                        type=str)
     parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
                                                               'input api key', default=None, type=str)
-    parser.add_argument('--n_fold', dest='n_fold', help='Number of Kfolds', default=None, type=int)
+    parser.add_argument('--test_epoch', dest='test_epoch', help='train one epoch for test', action='store_true')
+
     parser.print_help()
     return parser.parse_args()
 
 
-def train_one_epoch(model, optimizer, criterion, dataloader, device):
+def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
     """
     :param model: model
     :param optimizer: optimizer
@@ -77,16 +77,16 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device):
         optimizer.zero_grad()
 
         if batch_idx % cfg.LOG_FREQ == 0:
-            MetricLogger.train_loss_batch(loss.item())
+            MetricLogger.train_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
-            loss=loss
+            loss=loss.item()
         )
 
     return losses.avg
 
 
-def eval_one_epoch(model, criterion, dataloader, device):
+def eval_one_epoch(model, criterion, dataloader, device, epoch):
     model.eval()
     losses = AverageMeter()
     preds = []
@@ -102,10 +102,10 @@ def eval_one_epoch(model, criterion, dataloader, device):
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
         if batch_idx % cfg.LOG_FREQ == 0:
-            MetricLogger.val_loss_batch(loss.item())
+            MetricLogger.val_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
 
         loop.set_postfix(
-            loss=loss
+            loss=loss.item()
         )
 
     predictions = np.concatenate(preds)
@@ -118,35 +118,30 @@ if __name__ == '__main__':
 
     assert args.data_path, 'data path not specified'
     assert args.device in ['gpu', 'tpu'], 'incorrect device type'
+    assert args.cur_model in ['wide_resnet50_2', 'efficientnet', 'nfnet_l0'], 'incorrect model name'
 
     cfg.DATA_ROOT = args.data_path
     logger = logging.getLogger('main')
 
     if args.version_name:
         project_version = args.version_name
+        cfg.PROJECT_VERSION_NAME = project_version
     else:
-        project_version = 'efficient_net'
+        project_version = 'unnamed model'
 
-    if args.model_version:
-        assert args.model_version in cfg.EFFICIENT_VERSIONS, 'incorrect model version'
-        cfg.EFFICIENT_VERSIONS = [args.model_version]
-
-    if args.load_model:
-        if not args.model_version:
-            raise ValueError('load model version not specified')
-        else:
-            cfg.LOAD_MODEL = True
-            model_file_name = args.load_model
-            cfg.EFFICIENT_VERSIONS = [args.model_version]
+    if args.cur_model:
+        model_name = args.cur_model
 
     if args.wandb_key:
         os.environ["WANDB_API_KEY"] = args.wandb_key
     if args.wandb_id:
         cfg.WANDB_ID = args.wandb_id
 
-    if args.n_fold:
-        assert 2 <= args.n_fold <= 4, 'n_fold should be <= 4'
-        cfg.N_FOLD = args.n_fold
+    if args.out_dir:
+        cfg.OUTPUT_DIR = args.out_dir
+
+    if args.test_epoch:
+        cfg.NUM_EPOCHS = 1
 
     logger.info(f'Start {__name__} at {time.ctime()}')
     logger.info(f'Called with args: {args.__dict__}')
@@ -154,19 +149,6 @@ if __name__ == '__main__':
 
     if args.device == 'gpu':
         device = torch.device('cuda')
-
-    # if args.device == 'tpu':
-    #     try:
-    #         import torch_xla.core.xla_model as xm
-    #         import torch_xla.distributed.parallel_loader as pl
-    #         import torch_xla.distributed.xla_multiprocessing as xmp
-    #         import torch_xla.utils.serialization as xser
-    #
-    #         os.environ['XLA_USE_BF16'] = "1"
-    #         os.environ['XLA_TENSOR_ALLOCATOR_MAXSIZE'] = '100000000'
-    #
-    #     except ImportError:
-    #         logger.error('cannot import xla')
 
     logger.info(f'Using device:{args.device}')
 
@@ -178,26 +160,35 @@ if __name__ == '__main__':
     # Split KFold
     train_df = split_data_kfold(train_df)
 
-    for version in cfg.EFFICIENT_VERSIONS:
-        cfg.PROJECT_VERSION_NAME = f'{project_version}_{version}'
-        # defining model
-        if cfg.LOAD_MODEL:
-            model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
-            cp = torch.load(model_file_name, map_location=device)
-            model.load_state_dict(cp['model'])
-            logger.info(f"model loaded from {model_file_name}")
-        else:
-            model = EfficientNet(version, num_classes=cfg.NUM_CLASSES, in_channels=cfg.IMG_CHANNELS).to(device)
-            logger.info(f'init default model version {version}')
+    if args.cur_model:
+        model_list = [args.cur_model]
+    else:
+        model_list = ['wide_resnet50_2', 'efficientnet', 'nfnet_l0']
 
+    for i, name_model in enumerate(model_list):
+        logger.info(f"Start experiment №{i} of {len(model_list)} - Current model name {name_model}")
+        # resume training
+        if args.ckpt:
+            try:
+                model = get_model(name_model).to(device)
+                state = torch.load(args.ckpt)
+                model.load_state_dict(state['model'])
+                start_epoch = state(['start_epoch'])
+                logger.info(f"resume training, start_epoch {start_epoch}")
+            except ValueError:
+                logger.error("incorrect type or path of model")
+                break
+        else:
+            model = get_model(name_model).to(device)
+            start_epoch = 0
+            logger.info(f"load default weights")
+
+        oof_df = pd.DataFrame()
         for fold in range(cfg.N_FOLD):
-            logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')
             train_idxs = train_df[train_df['fold'] != fold].index
             val_idxs = train_df[train_df['fold'] == fold].index
-
             train_folds = train_df.loc[train_idxs].reset_index(drop=True)
             val_folds = train_df.loc[val_idxs].reset_index(drop=True)
-            # y targets
             val_labels = val_folds['target'].values
 
             train_dataset = SETIDataset(train_folds, transform=True)
@@ -210,19 +201,19 @@ if __name__ == '__main__':
 
             # defining optimizer, scheduler, loss
             optimizer = optim.Adam(model.parameters(model), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
-                                   weight_decay=cfg.WEIGHT_DECAY)
+                                   weight_decay=cfg.WEIGHT_DECAY, amsgrad=False)
             scheduler = get_scheduler(optimizer)
             criterion = nn.BCEWithLogitsLoss()
 
-            metric_logger = MetricLogger(version)
+            metric_logger = MetricLogger(name_model)
 
             best_score = 0.
             best_loss = np.inf
-            for epoch in range(cfg.NUM_EPOCHS):
+            for epoch in range(start_epoch, cfg.NUM_EPOCHS):
                 # train model
-                avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, device)
+                avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, device, epoch)
                 # evaluate model
-                avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, device)
+                avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, device, epoch)
 
                 if isinstance(scheduler, ReduceLROnPlateau):
                     scheduler.step(avg_val_loss)
@@ -230,30 +221,35 @@ if __name__ == '__main__':
                     scheduler.step()
                 elif isinstance(scheduler, CosineAnnealingWarmRestarts):
                     scheduler.step()
-                # metric
+                # epoch roc_auc score
                 auc_score = roc_auc_score(val_labels, preds)
+
                 metric_logger.log(avg_loss, avg_val_loss, auc_score)
-                # save model
+                logger.info(f"Epoch:{epoch} | avg_train_loss:{avg_loss:.4f} | avg_val_loss:{avg_val_loss:.4f}")
+                logger.info(f"------ROC_AUC_SCORE: {auc_score}")
+
                 if auc_score > best_score:
                     best_score = auc_score
-                    logger.info(f"Fined the best score {best_score:.4f}: EPOCH {epoch}")
-                    logger.info(f"Save model to {cfg.OUTPUT_DIR}")
-                    torch.save({
-                        'model': model.state_dict(),
-                        'preds': preds
-                    }, cfg.OUTPUT_DIR + f"efficient_{version}_best_auc.pth.tar")
+                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_roc_auc.pth.tar"
+                    save_checkpoint(save_path, model, preds, epoch)
+                    logger.info(f"Found the best roc_auc_score, save model to {save_path}")
                 if avg_val_loss < best_loss:
                     best_loss = avg_val_loss
-                    logger.info(f"Fined the best evaluation loss {best_loss:.4f}: EPOCH {epoch}")
-                    logger.info(f"Save model to {cfg.OUTPUT_DIR}")
-                    torch.save({
-                        'model': model.state_dict(),
-                        'preds': preds
-                    }, cfg.OUTPUT_DIR + f"efficient_{version}_best_val_loss.pth.tar")
+                    save_path = cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_val_loss.pth.tar"
+                    save_checkpoint(save_path, model, preds, epoch)
+                    logger.info(f"Found the best validation loss, save model to {save_path}")
 
-                if epoch % cfg.SAVE_EPOCH_FREQ == 0:
-                    logger.info(f"Save model epoch {epoch}")
-                    torch.save({
-                        'model': model.state_dict(),
-                        'preds': preds
-                    }, cfg.OUTPUT_DIR + f"efficient_{version}_epoch_{epoch}.pth.tar")
+            val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_val_loss.pth.tar",
+                                            map_location=torch.device("cpu"))['preds']
+
+            _oof_df = val_folds
+            oof_df = pd.concat([oof_df, _oof_df])
+
+            logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')
+            # Best epoch result
+            print_result(_oof_df)
+
+        # best from all folds
+        logger.info("=========== CROSS-VALIDATION SCORE ===========")
+        print_result(oof_df)
+        oof_df.to_csv(cfg.OUTPUT_DIR + 'oof_df.csv', index=False)
