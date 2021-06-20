@@ -16,7 +16,7 @@ __C.USE_APEX = True
 __C.NUM_CLASSES = 1
 __C.EFFICIENT_VERSIONS = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7']
 __C.IMG_SIZE = 224
-__C.NUM_EPOCHS = 4
+__C.NUM_EPOCHS = 6
 __C.LEARNING_RATE = 1e-4
 __C.BATCH_SIZE = 64
 
