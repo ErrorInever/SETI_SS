@@ -33,6 +33,7 @@ def parse_args():
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
                                                               'input api key', default=None, type=str)
     parser.add_argument('--test_epoch', dest='test_epoch', help='train one epoch for test', action='store_true')
+    parser.add_argument('--num_epoch', dest='num_epoch', help='number of epochs', default=None, type=int)
 
     parser.print_help()
     return parser.parse_args()
@@ -142,6 +143,9 @@ if __name__ == '__main__':
 
     if args.test_epoch:
         cfg.NUM_EPOCHS = 1
+
+    if args.num_epoch:
+        cfg.NUM_EPOCHS = args.num_epoch
 
     logger.info(f'Start {__name__} at {time.ctime()}')
     logger.info(f'Called with args: {args.__dict__}')
