@@ -34,6 +34,8 @@ def parse_args():
                                                               'input api key', default=None, type=str)
     parser.add_argument('--test_epoch', dest='test_epoch', help='train one epoch for test', action='store_true')
     parser.add_argument('--num_epoch', dest='num_epoch', help='number of epochs', default=None, type=int)
+    parser.add_argument('--n_fold', dest='n_fold', help='start from fold', default=None, type=int)
+    parser.add_argument('--n_epoch', dest='n_epoch', help='start from epoch', default=None, type=int)
 
     parser.print_help()
     return parser.parse_args()
@@ -150,6 +152,16 @@ if __name__ == '__main__':
     if args.num_epoch:
         cfg.NUM_EPOCHS = args.num_epoch
 
+    if args.n_fold:
+        start_fold = args.n_fold
+    else:
+        start_fold = 0
+
+    if args.n_epoch:
+        start_epoch = args.n_epoch
+    else:
+        start_epoch = 0
+
     logger.info(f'Start {__name__} at {time.ctime()}')
     logger.info(f'Called with args: {args.__dict__}')
     logger.info(f'Config params: {cfg.__dict__}')
@@ -180,8 +192,7 @@ if __name__ == '__main__':
                 model = get_model(name_model).to(device)
                 state = torch.load(args.ckpt)
                 model.load_state_dict(state['model'])
-                start_epoch = state(['start_epoch'])
-                logger.info(f"resume training, start_epoch {start_epoch}")
+                logger.info(f"resume training")
             except ValueError:
                 logger.error("incorrect type or path of model")
                 break
@@ -191,7 +202,7 @@ if __name__ == '__main__':
             logger.info(f"load default weights")
 
         oof_df = pd.DataFrame()
-        for fold in range(cfg.N_FOLD):
+        for fold in range(start_fold, cfg.N_FOLD):
             train_idxs = train_df[train_df['fold'] != fold].index
             val_idxs = train_df[train_df['fold'] == fold].index
             train_folds = train_df.loc[train_idxs].reset_index(drop=True)
