@@ -13,7 +13,7 @@ from tqdm import tqdm
 from data.dataset import SETIDataset
 from torch.utils.data import DataLoader
 from utils import (seed_everything, get_train_file_path, get_scheduler, AverageMeter,
-                   split_data_kfold, print_result, save_checkpoint)
+                   split_data_kfold, print_result, save_checkpoint, mix_up_data, loss_mix_up)
 from config import cfg
 from metric_logger import MetricLogger
 from sklearn.metrics import roc_auc_score
@@ -55,12 +55,15 @@ def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, devi
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
         batch_size = label.size(0)
+        img, label_a, label_b, lam = mix_up_data(img, label, use_cuda=True)
         img = img.to(device)
-        label = label.to(device)
+        label_a = label_a.to(device)
+        label_b = label_b.to(device)
+
         if cfg.USE_APEX:
             with torch.cuda.amp.autocast():
                 y_preds = model(img)
-                loss = criterion(y_preds.view(-1), label)
+                loss = loss_mix_up(criterion, y_preds.view(-1), label_a, label_b, lam)
         else:
             y_preds = model(img)
             loss = criterion(y_preds.view(-1), label)
