@@ -23,6 +23,7 @@ def parse_args():
     parser.add_argument('--model_version', dest='model_version', help='Specified version of model', default=None,
                     type=str)
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default CPU', default='cpu', type=str)
+    parser.add_argument('--oof', dest='oof', help='display oof score', action='store_true')
     parser.print_help()
     return parser.parse_args()
 
@@ -72,7 +73,9 @@ if __name__ == '__main__':
     elif args.device == 'cpu':
         device = torch.device('cpu')
 
-    oof = pd.read_csv(cfg.OUTPUT_DIR + 'oof_df.csv')
+    if args.oof:
+        oof = pd.read_csv(cfg.OUTPUT_DIR + 'oof_df.csv')
+
     logger.info("Loaded oof with score")
     print_result(oof)
 
