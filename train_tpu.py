@@ -133,7 +133,7 @@ def run_tpu(rank, train_df, mx_model, model_name, start_epoch):
         rank=xm.get_ordinal(),
         shuffle=False)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True, num_workers=cfg.TPU_WORKER,
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=cfg.TPU_WORKER,
                                   drop_last=True, sampler=train_sampler)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=cfg.TPU_WORKER,
                                 drop_last=False, sampler=valid_sampler)
