@@ -195,7 +195,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('train')
 
     assert args.data_path, 'data path not specified'
-    assert args.cur_model in ['efficient', 'nfnet'], 'incorrect model name'
+    assert args.model_name in ['efficient', 'nfnet'], 'incorrect model name'
 
     cfg.DATA_ROOT = args.data_path
 
