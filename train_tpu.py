@@ -103,7 +103,7 @@ def eval_one_epoch(model, criterion, dataloader, metric_logger, epoch):
     return losses.avg, predictions
 
 
-def run_tpu(train_df, mx_model, model_name, start_epoch):
+def run_tpu(rank, train_df, mx_model, model_name, start_epoch):
     torch.set_default_tensor_type('torch.FloatTensor')
     device = xm.xla_device()
     xm.set_rng_state(cfg.SEED, device)
