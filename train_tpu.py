@@ -271,5 +271,5 @@ if __name__ == '__main__':
     train_df = split_data_kfold(train_df)
 
     for fold in range(start_fold, cfg.N_FOLD):
-        xmp.spawn(run_tpu, args=(train_df, mx_model, model_name, start_epoch), nprocs=8, start_method='fork')
+        xmp.spawn(run_tpu, args=(train_df, mx_model, model_name, start_epoch,), nprocs=8, start_method='fork')
         logger.info("done")
