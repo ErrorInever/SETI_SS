@@ -173,13 +173,13 @@ def run_tpu(rank, flags):
     best_score = 0.
     best_loss = np.inf
     for epoch in range(start_epoch, cfg.NUM_EPOCHS):
-        train_para_dataloader = pl.MpDeviceLoader(train_dataloader, [device]).per_device_loader(device)
+        train_para_dataloader = pl.ParallelLoader(train_dataloader, [device]).per_device_loader(device)
         avg_loss = train_one_epoch(model, optimizer, criterion, train_para_dataloader, device, epoch)
         del train_para_dataloader
         gc.collect()
 
         xm.master_print('\nValidating now...')
-        val_para_dataloader = pl.MpDeviceLoader(val_dataloader, [device]).per_device_loader(device)
+        val_para_dataloader = pl.ParallelLoader(val_dataloader, [device]).per_device_loader(device)
         avg_val_loss, preds = eval_one_epoch(model, criterion, val_para_dataloader, device, epoch)
         del val_para_dataloader
         gc.collect()
