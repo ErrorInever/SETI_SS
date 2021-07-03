@@ -44,7 +44,16 @@ def parse_args():
     return parser.parse_args()
 
 
-def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, epoch):
+def reduce(values):
+    '''
+    Returns the average of the values.
+    Args:
+        values : list of any value which is calulated on each core
+    '''
+    return sum(values) / len(values)
+
+
+def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
     """
     :param model: model
     :param optimizer: optimizer
@@ -58,44 +67,47 @@ def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, epoc
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
         batch_size = label.size(0)
+        img = img.to(device)
+        label = label.to(device)
         # TODO: add mixup
         # img, label_a, label_b, lam = mix_up_data(img, label, use_cuda=False)
         # loss = loss_mix_up(criterion, y_preds.view(-1), label_a, label_b, lam)
         optimizer.zero_grad()
         y_preds = model(img)
         loss = criterion(y_preds.view(-1), label)
-        losses.update(loss, batch_size)
         loss.backward()
         xm.optimizer_step(optimizer)
 
-        if batch_idx % cfg.LOG_FREQ == 0:
-            metric_logger.train_loss_batch(loss, epoch, len(dataloader), batch_idx)
+        loss_reduced = xm.mesh_reduce('train_loss_reduce', loss, reduce)
+        losses.update(loss_reduced.item(), batch_size)
 
         loop.set_postfix(
-            loss=loss
+            loss=loss_reduced.item()
         )
 
+    xm.master_print(f'{epoch+1} - Loss : {reduce(losses): .4f}')
+    gc.collect()
     return losses.avg
 
 
-def eval_one_epoch(model, criterion, dataloader, metric_logger, epoch):
+def eval_one_epoch(model, criterion, dataloader, device, epoch):
     model.eval()
     losses = AverageMeter()
     preds = []
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
+        img = img.to(device)
+        label = label.to(device)
+
         batch_size = label.size(0)
         with torch.no_grad():
             y_preds = model(img)
         loss = criterion(y_preds.view(-1), label)
-        losses.update(loss, batch_size)
+        losses.update(xm.mesh_reduce('val_loss_reduce', loss, reduce).item(), batch_size)
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
-        if batch_idx % cfg.LOG_FREQ == 0:
-            metric_logger.val_loss_batch(loss, epoch, len(dataloader), batch_idx)
-
         loop.set_postfix(
-            loss=loss
+            loss=xm.mesh_reduce('val_loss_reduce', loss, reduce).item()
         )
 
     predictions = np.concatenate(preds)
@@ -103,7 +115,12 @@ def eval_one_epoch(model, criterion, dataloader, metric_logger, epoch):
     return losses.avg, predictions
 
 
-def run_tpu(rank, train_df, mx_model, model_name, start_epoch):
+def run_tpu(rank, flags):
+    train_df = flags['train_df']
+    mx_model = flags['mx_model']
+    model_name = flags['model_name']
+    start_epoch = flags['start_epoch']
+
     torch.set_default_tensor_type('torch.FloatTensor')
     device = xm.xla_device()
     xm.set_rng_state(cfg.SEED, device)
@@ -137,27 +154,35 @@ def run_tpu(rank, train_df, mx_model, model_name, start_epoch):
                                   drop_last=True, sampler=train_sampler)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=cfg.TPU_WORKER,
                                 drop_last=False, sampler=valid_sampler)
+    del train_sampler, valid_sampler
+    gc.collect()
 
-    train_dataloader = pl.MpDeviceLoader(train_dataloader, device)  # puts the train data onto the current TPU core
-    val_dataloader = pl.MpDeviceLoader(val_dataloader, device)    # puts the valid data onto the current TPU core
+    #train_dataloader = pl.MpDeviceLoader(train_dataloader, device)  # puts the train data onto the current TPU core
+    #val_dataloader = pl.MpDeviceLoader(val_dataloader, device)    # puts the valid data onto the current TPU core
 
     model = mx_model.to(device)     # put model onto the current TPU core
 
     # scale the learning rate by number of cores
-    optimizer = optim.Adam(model.parameters(model), lr=cfg.LEARNING_RATE * xm.xrt_world_size(), betas=cfg.BETAS,
+    optimizer = optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE * xm.xrt_world_size(), betas=cfg.BETAS,
                            weight_decay=cfg.WEIGHT_DECAY)
     scheduler = get_scheduler(optimizer)
     criterion = nn.BCEWithLogitsLoss()
 
-    gc.collect()
-
-    metric_logger = MetricLogger(model_name)
-
+    #metric_logger = MetricLogger(model_name)
+    xm.master_print('Start Training now...')
     best_score = 0.
     best_loss = np.inf
     for epoch in range(start_epoch, cfg.NUM_EPOCHS):
-        avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, metric_logger, epoch)
-        avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, metric_logger, epoch)
+        train_para_dataloader = pl.MpDeviceLoader(train_dataloader, [device]).per_device_loader(device)
+        avg_loss = train_one_epoch(model, optimizer, criterion, train_para_dataloader, device, epoch)
+        del train_para_dataloader
+        gc.collect()
+
+        xm.master_print('\nValidating now...')
+        val_para_dataloader = pl.MpDeviceLoader(val_dataloader, [device]).per_device_loader(device)
+        avg_val_loss, preds = eval_one_epoch(model, criterion, val_para_dataloader, device, epoch)
+        del val_para_dataloader
+        gc.collect()
 
         if isinstance(scheduler, ReduceLROnPlateau):
             scheduler.step(avg_val_loss)
@@ -167,25 +192,10 @@ def run_tpu(rank, train_df, mx_model, model_name, start_epoch):
             scheduler.step()
 
         auc_score = roc_auc_score(val_labels, preds)
+        xm.master_print(f'Val Loss : {avg_val_loss: .4f}')
 
-        metric_logger.log(avg_loss, avg_val_loss, auc_score)
-        logger.info(f"Epoch:{epoch} | avg_train_loss:{avg_loss:.4f} | avg_val_loss:{avg_val_loss:.4f}")
-        logger.info(f"------ROC_AUC_SCORE: {auc_score}")
-
-        gc.collect()
-
-        xm.rendezvous('save_model')
-
-        if auc_score > best_score:
-            best_score = auc_score
-            save_path = cfg.OUTPUT_DIR + f"XLA_{model_name}_fold_{fold}_best_roc_auc.pth.tar"
-            xm.save(model.state_dict(), save_path)
-            logger.info(f"Found the best roc_auc_score, save model to {save_path}")
-        if avg_val_loss < best_loss:
-            best_loss = avg_val_loss
-            save_path = cfg.OUTPUT_DIR + f"XLA_{model_name}_fold_{fold}_best_val_loss.pth.tar"
-            xm.save(model.state_dict(), save_path)
-            logger.info(f"Found the best validation loss, save model to {save_path}")
+        # Saving the model, so that we can import it in the inference kernel.
+        xm.save(model.state_dict(), f"8core_fold_model_.pth.tar")
 
 
 if __name__ == '__main__':
@@ -270,6 +280,14 @@ if __name__ == '__main__':
     # Split KFold
     train_df = split_data_kfold(train_df)
 
+    FLAGS = {
+        'train_df': train_df,
+        'mx_model': mx_model,
+        'model_name': model_name,
+        'start_epoch': start_epoch
+    }
+
     for fold in range(start_fold, cfg.N_FOLD):
-        xmp.spawn(run_tpu, args=(train_df, mx_model, model_name, start_epoch,), nprocs=8, start_method='fork')
-        logger.info("done")
+        logger.info(f"======Fold {fold+1} of {cfg.N_FOLD}======")
+        xmp.spawn(run_tpu, args=(FLAGS,), nprocs=8, start_method='fork')
+        logger.info("train done")
