@@ -75,9 +75,8 @@ if __name__ == '__main__':
 
     if args.oof:
         oof = pd.read_csv(cfg.OUTPUT_DIR + 'oof_df.csv')
-
-    logger.info("Loaded oof with score")
-    print_result(oof)
+        print_result(oof)
+        logger.info("Loaded oof with score")
 
     data_root = args.data_path
     test_path = os.path.join(data_root, 'sample_submission.csv')
