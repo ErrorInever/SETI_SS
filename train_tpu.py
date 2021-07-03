@@ -63,7 +63,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
     :return: average loss
     """
     model.train()
-    losses = AverageMeter()
+    losses = []
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
         batch_size = label.size(0)
@@ -79,20 +79,16 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
         xm.optimizer_step(optimizer)
 
         loss_reduced = xm.mesh_reduce('train_loss_reduce', loss, reduce)
-        losses.update(loss_reduced.item(), batch_size)
-
-        loop.set_postfix(
-            loss=loss_reduced.item()
-        )
+        losses.append(loss_reduced.item())
 
     xm.master_print(f'{epoch+1} - Loss : {reduce(losses): .4f}')
     gc.collect()
-    return losses.avg
+    return reduce(losses)
 
 
 def eval_one_epoch(model, criterion, dataloader, device, epoch):
     model.eval()
-    losses = AverageMeter()
+    losses = []
     preds = []
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
@@ -103,16 +99,12 @@ def eval_one_epoch(model, criterion, dataloader, device, epoch):
         with torch.no_grad():
             y_preds = model(img)
         loss = criterion(y_preds.view(-1), label)
-        losses.update(xm.mesh_reduce('val_loss_reduce', loss, reduce).item(), batch_size)
+        losses.append(xm.mesh_reduce('val_loss_reduce', loss, reduce).item())
         preds.append(y_preds.sigmoid().to('cpu').numpy())
-
-        loop.set_postfix(
-            loss=xm.mesh_reduce('val_loss_reduce', loss, reduce).item()
-        )
 
     predictions = np.concatenate(preds)
     gc.collect()
-    return losses.avg, predictions
+    return reduce(losses), predictions
 
 
 def run_tpu(rank, flags):
@@ -157,9 +149,6 @@ def run_tpu(rank, flags):
     del train_sampler, valid_sampler
     gc.collect()
 
-    #train_dataloader = pl.MpDeviceLoader(train_dataloader, device)  # puts the train data onto the current TPU core
-    #val_dataloader = pl.MpDeviceLoader(val_dataloader, device)    # puts the valid data onto the current TPU core
-
     model = mx_model.to(device)     # put model onto the current TPU core
 
     # scale the learning rate by number of cores
@@ -168,7 +157,7 @@ def run_tpu(rank, flags):
     scheduler = get_scheduler(optimizer)
     criterion = nn.BCEWithLogitsLoss()
 
-    #metric_logger = MetricLogger(model_name)
+
     xm.master_print('Start Training now...')
     best_score = 0.
     best_loss = np.inf
