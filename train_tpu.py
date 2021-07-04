@@ -254,7 +254,7 @@ if __name__ == '__main__':
     logger.info(f'Called with args: {args.__dict__}')
     logger.info(f'Config params: {cfg.__dict__}')
 
-    mx_model = xmp.MpModelWrapper(model)
+    mx_model = model
 
     # define dataset
     data_root = args.data_path
