@@ -66,7 +66,6 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
     losses = []
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
-        batch_size = label.size(0)
         img = img.to(device)
         label = label.to(device)
         # TODO: add mixup
@@ -80,13 +79,14 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device, epoch):
 
         loss_reduced = xm.mesh_reduce('train_loss_reduce', loss, reduce)
         losses.append(loss_reduced.item())
+        del img, label, y_preds
+        gc.collect()
 
     xm.master_print(f'{epoch+1} - Loss : {reduce(losses): .4f}')
-    gc.collect()
     return reduce(losses)
 
 
-def eval_one_epoch(model, criterion, dataloader, device, epoch):
+def eval_one_epoch(model, criterion, dataloader, device):
     model.eval()
     losses = []
     preds = []
@@ -94,12 +94,11 @@ def eval_one_epoch(model, criterion, dataloader, device, epoch):
     for batch_idx, (img, label) in enumerate(loop):
         img = img.to(device)
         label = label.to(device)
-
-        batch_size = label.size(0)
         with torch.no_grad():
             y_preds = model(img)
         loss = criterion(y_preds.view(-1), label)
-        losses.append(xm.mesh_reduce('val_loss_reduce', loss, reduce).item())
+        loss_reduced = xm.mesh_reduce('val_loss_reduce', loss, reduce)
+        losses.append(loss_reduced.item())
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
     predictions = np.concatenate(preds)
@@ -112,11 +111,9 @@ def run_tpu(rank, flags):
     mx_model = flags['mx_model']
     model_name = flags['model_name']
     start_epoch = flags['start_epoch']
+    fold = flags['fold']
 
-    torch.set_default_tensor_type('torch.FloatTensor')
     device = xm.xla_device()
-    xm.set_rng_state(cfg.SEED, device)
-
     logger.info(f"Running on device: {device}")
 
     train_idxs = train_df[train_df['fold'] != fold].index
@@ -131,13 +128,13 @@ def run_tpu(rank, flags):
 
     # special sampler needed for distributed/multi-core (divides dataset among the replicas/cores/devices)
     train_sampler = torch.utils.data.distributed.DistributedSampler(
-        train_dataset,
+        dataset=train_dataset,
         num_replicas=xm.xrt_world_size(),
         rank=xm.get_ordinal(),
         shuffle=True
     )
     valid_sampler = torch.utils.data.distributed.DistributedSampler(
-        val_dataset,
+        dataset=val_dataset,
         num_replicas=xm.xrt_world_size(),
         rank=xm.get_ordinal(),
         shuffle=False)
@@ -169,7 +166,7 @@ def run_tpu(rank, flags):
 
         xm.master_print('\nValidating now...')
         val_para_dataloader = pl.ParallelLoader(val_dataloader, [device]).per_device_loader(device)
-        avg_val_loss, preds = eval_one_epoch(model, criterion, val_para_dataloader, device, epoch)
+        avg_val_loss, preds = eval_one_epoch(model, criterion, val_para_dataloader, device)
         del val_para_dataloader
         gc.collect()
 
@@ -181,8 +178,7 @@ def run_tpu(rank, flags):
             scheduler.step()
 
         auc_score = roc_auc_score(val_labels, preds)
-        xm.master_print(f'Val Loss : {avg_val_loss: .4f}')
-
+        xm.master_print(f'AVG LOSS {avg_loss: .4f} | VAL LOSS : {avg_val_loss: .4f} | AUC SCORE | {auc_score: .4f}')
         # Saving the model, so that we can import it in the inference kernel.
         xm.save(model.state_dict(), f"8core_fold_model_.pth.tar")
 
@@ -258,7 +254,6 @@ if __name__ == '__main__':
     logger.info(f'Called with args: {args.__dict__}')
     logger.info(f'Config params: {cfg.__dict__}')
 
-
     mx_model = xmp.MpModelWrapper(model)
 
     # define dataset
@@ -273,10 +268,12 @@ if __name__ == '__main__':
         'train_df': train_df,
         'mx_model': mx_model,
         'model_name': model_name,
-        'start_epoch': start_epoch
+        'start_epoch': start_epoch,
+        'fold': None
     }
 
     for fold in range(start_fold, cfg.N_FOLD):
         logger.info(f"======Fold {fold+1} of {cfg.N_FOLD}======")
+        FLAGS['fold'] = fold
         xmp.spawn(run_tpu, args=(FLAGS,), nprocs=8, start_method='fork')
         logger.info("train done")
