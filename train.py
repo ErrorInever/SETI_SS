@@ -139,6 +139,7 @@ if __name__ == '__main__':
 
     if args.eff_ver:
         name_model = f'efficient_{args.eff_ver}'
+        model_version = args.eff_ver
 
     if args.wandb_key:
         os.environ["WANDB_API_KEY"] = args.wandb_key
@@ -196,7 +197,7 @@ if __name__ == '__main__':
         val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
                                     drop_last=False)
         # defining optimizer, scheduler, loss
-        model = get_model(name_model).to(device)
+        model = get_model('efficientnet', version=model_version).to(device)
 
         optimizer = optim.Adam(model.parameters(model), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
                                weight_decay=cfg.WEIGHT_DECAY, amsgrad=False)
