@@ -14,14 +14,12 @@ from config import cfg
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='SLE-GC-GAN')
+    parser = argparse.ArgumentParser(description='SETI_EFFECIENT')
     parser.add_argument('--data_path', dest='data_path', help='Path to dataset folder', default=None, type=str)
     parser.add_argument('--out_dir', dest='out_dir', help='Path where to save files', default=None, type=str)
-    parser.add_argument('--cur_model', dest='cur_model', help='inference specified model', default=None, type=str)
     parser.add_argument('--model_dir', dest='model_dir', help='dir where states stored', default=None, type=str)
+    parser.add_argument('--model_name', dest='model_name', help='model name', default=None, type=str)
     parser.add_argument('--load_model', dest='load_model', help='Path to model.pth.tar', default=None, type=str)
-    parser.add_argument('--model_version', dest='model_version', help='Specified version of model', default=None,
-                    type=str)
     parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default CPU', default='cpu', type=str)
     parser.add_argument('--oof', dest='oof', help='display oof score', action='store_true')
     parser.print_help()
@@ -54,10 +52,7 @@ if __name__ == '__main__':
 
     assert args.data_path, 'data path not specified'
     assert args.device in ['cpu', 'gpu', 'tpu'], 'incorrect device type'
-    assert args.cur_model in ['wide_resnet50_2', 'efficientnet', 'nfnet_l0'], 'incorrect model name'
-
-    if args.cur_model:
-        model_name = args.cur_model
+    assert args.model_name, 'no model name'
 
     if args.model_dir:
         model_dir = args.model_dir
@@ -83,25 +78,21 @@ if __name__ == '__main__':
     test_df = pd.read_csv(test_path)
     test_df['file_path'] = test_df['id'].apply(get_test_file_path)
 
-    if args.cur_model:
-        model_list = [model_name]
-    else:
-        model_list = ['wide_resnet50_2', 'efficientnet', 'nfnet_l0']
 
-    for i, name_model in enumerate(model_list):
-        logger.info(f"Start inference №{i} of {len(model_list)} - Current model name {name_model}")
+    model_name = args.model_name.split('_')[0]
+    model_version = args.model_name.split('_')[1]
 
-        model = get_model(name_model, pretrained=False)
-        states = [torch.load(model_dir+f"{name_model}_fold_{fold}_best_val_loss.pth.tar") for fold in cfg.TRN_FOLD]
+    model = get_model('efficientnet', version=model_version).to(device)
+    states = [torch.load(model_dir+f"{model_name}_{model_version}_fold_{fold}_best_val_loss.pth.tar") for fold in cfg.TRN_FOLD]
 
-        test_dataset = SETIDataset(test_df, resize=True)
-        test_dataloader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True)
+    test_dataset = SETIDataset(test_df, resize=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True)
 
-        predictions = inference(model, states, test_dataloader, device)
+    predictions = inference(model, states, test_dataloader, device)
 
-        # make submission
-        test_df['target'] = predictions
-        test_df[['id', 'target']].to_csv('submission.csv', index=False)
-        test_df[['id', 'target']].head()
+    # make submission
+    test_df['target'] = predictions
+    test_df[['id', 'target']].to_csv('submission.csv', index=False)
+    test_df[['id', 'target']].head()
 
-        logger.info(f"Inference done, save submission.csv")
+    logger.info(f"Inference done, save submission.csv")
