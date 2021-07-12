@@ -197,7 +197,18 @@ if __name__ == '__main__':
         val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
                                     drop_last=False)
         # defining optimizer, scheduler, loss
-        model = get_model('efficientnet', version=model_version).to(device)
+        if args.ckpt:
+            try:
+                model = get_model('efficientnet', version=model_version).to(device)
+                state = torch.load(args.ckpt)
+                model.load_state_dict(state['model'])
+                logger.info(f"resume training")
+            except Exception:
+                logger.error("incorrect type or path of model")
+                raise ValueError
+        else:
+            model = get_model('efficientnet', version=model_version).to(device)
+            logger.info(f"load default weights")
 
         optimizer = optim.Adam(model.parameters(model), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
                                weight_decay=cfg.WEIGHT_DECAY, amsgrad=False)
