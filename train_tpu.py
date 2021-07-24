@@ -101,8 +101,10 @@ def eval_one_epoch(model, criterion, dataloader, device):
         losses.append(loss_reduced.item())
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
+        del img, label, y_preds
+        gc.collect()
+
     predictions = np.concatenate(preds)
-    gc.collect()
     return reduce(losses), predictions
 
 
