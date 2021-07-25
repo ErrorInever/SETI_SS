@@ -186,7 +186,7 @@ if __name__ == '__main__':
     # out of fold (predictions), for display results
     oof_df = pd.DataFrame()
     # Train loop
-    for fold in range(0, cfg.FOLD_LIST):
+    for fold in range(cfg.NUM_FOLDS):
         logger.info(f'========== Fold: [{fold} of {len(cfg.FOLD_LIST)}] ==========')
         # Each fold divide on train and validation datasets
         train_idxs = train_df[train_df['fold'] != fold].index
