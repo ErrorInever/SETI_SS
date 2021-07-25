@@ -87,7 +87,7 @@ if __name__ == '__main__':
     # Paths and create DataFrames
     test_path = os.path.join(cfg.DATA_FOLDER, 'sample_submission.csv')
     test_df = pd.read_csv(test_path)
-    test_df['file_path'] = test_df['id'].apply(get_test_file_path)
+    test_df['file_paths'] = test_df['id'].apply(get_test_file_path)
 
     # Load model
     model = get_model(model_name=cfg.MODEL_TYPE, pretrained=False).to(cfg.DEVICE)
