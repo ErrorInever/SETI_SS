@@ -1,11 +1,14 @@
+import os
 import random
 import logging
 import torch
 import numpy as np
+from matplotlib import pyplot as plt
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 from config import cfg
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -156,3 +159,58 @@ def loss_mix_up(criterion, pred, y_a, y_b, lam):
     :return:
     """
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+
+
+def compute_mean_std(data_loader, num_images, image_size):
+    """
+    Compute pixel sum and squared sum
+    """
+    psum = torch.tensor([0.0])
+    psum_sq = torch.tensor([0.0])
+
+    for img, _ in tqdm(data_loader):
+        psum += img.sum(axis=[0, 2, 3])
+        psum_sq += (img ** 2).sum(axis=[0, 2, 3])
+
+    count = num_images * image_size * image_size
+    mean = psum / count
+    std = torch.sqrt((psum_sq / count) - (mean ** 2))
+    print("Stats")
+    print(f"MEAN: {mean.item():.4f}")
+    print(f"STD: {std.item():.4f}")
+
+
+def show_cadence(filename, label, cmap='viridis'):
+    """
+    Show signle cadence
+    :param filename: ``str``, file path to cadence
+    :param label: ``str``, label class
+    :param cmap: ``str``, cmap type
+    """
+    plt.figure(figsize=(16, 10))
+    arr = np.load(filename)
+    for i in range(6):
+        plt.subplot(6, 1, i + 1)
+        if i == 0:
+            plt.title(f"ID: {os.path.basename(filename)} TARGET: {label}", fontsize=18)
+        plt.imshow(arr[i].astype(float), interpolation='nearest', aspect='auto', cmap=cmap)
+        plt.text(5, 100, ["ON", "OFF"][i % 2], bbox={'facecolor': 'white'})
+        plt.xticks([])
+    plt.show()
+
+
+def show_cadence_examples(df, num_samples, target=0):
+    """
+    Show examples of cadences
+    :param df: ``DataFrame``, train dataframe with image paths
+    :param num_samples: ``int``, number examples
+    :param target: ``int``, if 1 show cadence with signal E.T., if 0 show cadence without signal E.T.
+    """
+    assert target in [0, 1], 'target must be 0 or 1'
+    if target == 0:
+        for i in range(num_samples):
+            show_cadence(df['file_path'][i], df['target'][i])
+    elif target == 1:
+        only_signal_target = df[df['target'] == 1]
+        for i in range(num_samples):
+            show_cadence(only_signal_target.iloc[i]['file_path'], only_signal_target.iloc[i]['target'], cmap='hot')
