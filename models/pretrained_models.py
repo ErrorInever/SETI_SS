@@ -47,4 +47,3 @@ def get_model(model_name, version='b0', pretrained=True):
         return WideResnet50(pretrained=pretrained)
     elif model_name == 'nf_net':
         return NFNETL0(pretrained=pretrained)
-
