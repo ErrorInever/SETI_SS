@@ -18,7 +18,6 @@ def parse_args():
     parser.add_argument('--data_path', dest='data_path', help='Path to dataset folder', default=None, type=str)
     parser.add_argument('--out_dir', dest='out_dir', help='Path where to save files', default=None, type=str)
     parser.add_argument('--model_dir', dest='model_dir', help='path where models stores', default=None, type=str)
-    parser.add_argument('--ckpt', dest='ckpt', help='path to model ckpt.pth.tar', default=None, type=str)
     parser.add_argument('--model_type', dest='model_type', help='Name model', default='nf_net', type=str)
     parser.add_argument('--device', dest='device', help='Use device: gpu or cpu. Default use gpu if available',
                         default='gpu', type=str)
