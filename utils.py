@@ -50,20 +50,35 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def split_data_kfold(df):
-    fold = StratifiedKFold(n_splits=cfg.N_FOLD, shuffle=True, random_state=cfg.SEED)
+def split_data_kfold(df, k=4):
+    """
+    Split data: Stratified K-Fold
+    :param df: DataFrame object
+    :param k: ``int``, How many folds the dataset is going to be divided
+    :return: Divided DataFrame object
+    """
+    fold = StratifiedKFold(n_splits=k, shuffle=True, random_state=cfg.SEED)
     for n, (train_idx, val_idx) in enumerate(fold.split(df, df['target'])):
         df.loc[val_idx, 'fold'] = int(n)
     df['fold'] = df['fold'].astype(int)
+    logger.info(f'==> Split K-Fold')
     logger.info(df.groupby(['fold', 'target']).size())
     return df
 
 
 def get_train_file_path(image_id):
+    """
+    Add new column with file path to train images
+    :param image_id: img id
+    """
     return "{}/train/{}/{}.npy".format(cfg.DATA_ROOT, image_id[0], image_id)
 
 
 def get_test_file_path(image_id):
+    """
+    Add new column with file path to test images
+    :param image_id: img id
+    """
     return "{}/test/{}/{}.npy".format(cfg.DATA_ROOT, image_id[0], image_id)
 
 
@@ -87,11 +102,12 @@ def print_result(result_df):
     logger.info(f'Score: {score:<.4f}')
 
 
-def save_checkpoint(save_path, model, preds, epoch):
+def save_checkpoint(save_path, model, optimizer, lr, preds):
     torch.save({
         'model': model.state_dict(),
+        'opt': optimizer.state_dict(),
+        'lr': lr,
         'preds': preds,
-        'start_epoch': epoch + 1
     }, save_path)
 
 

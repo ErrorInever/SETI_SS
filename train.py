@@ -1,6 +1,4 @@
 import argparse
-import gc
-
 import torch
 import logging
 import os
@@ -23,39 +21,42 @@ from models.pretrained_models import get_model
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Pretrained model experminet')
-    parser.add_argument('--data_path', dest='data_path', help='Path to dataset folder', default=None, type=str)
+    parser = argparse.ArgumentParser(description='SETI E.T.')
+    parser.add_argument('--data_path', dest='data_path', help='Path to root dataset', default=None, type=str)
     parser.add_argument('--out_dir', dest='out_dir', help='Path where to save files', default=None, type=str)
-    parser.add_argument('--device', dest='device', help='Use device: gpu or tpu. Default use gpu if available',
+    parser.add_argument('--device', dest='device', help='Use device: gpu or cpu. Default use gpu if available',
                         default='gpu', type=str)
-    parser.add_argument('--eff_ver', dest='eff_ver', help='version of efficient', default=None, type=str)
-    parser.add_argument('--ckpt', dest='ckpt', help='path to model statedict.pth.tar', default=None, type=str)
-    parser.add_argument('--version_name', dest='version_name', help='Version name for wandb', default=None, type=str)
-    parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume', default=None, type=str)
-    parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle, '
-                                                              'input api key', default=None, type=str)
-    parser.add_argument('--test_epoch', dest='test_epoch', help='train one epoch for test', action='store_true')
-    parser.add_argument('--num_epoch', dest='num_epoch', help='number of epochs', default=None, type=int)
-    parser.add_argument('--n_fold', dest='n_fold', help='start from fold', default=None, type=int)
-    parser.add_argument('--n_epoch', dest='n_epoch', help='start from epoch', default=None, type=int)
-
+    parser.add_argument('--ckpt', dest='ckpt', help='path to model ckpt.pth.tar', default=None, type=str)
+    parser.add_argument('--run_name', dest='run_name', help='Run name of wandb', default=None, type=str)
+    parser.add_argument('--wandb_id', dest='wandb_id', help='Wand metric id for resume train', default=None, type=str)
+    parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle notebook, '
+                                                              'input api key wandb', default=None, type=str)
+    parser.add_argument('--one_epoch', dest='one_epoch', help='Train one epoch', action='store_true')
+    parser.add_argument('--one_fold', dest='one_fold', help='Train one_fold', action='store_true')
+    parser.add_argument('--num_epochs', dest='num_epochs', help='Number of epochs', default=None, type=int)
+    parser.add_argument('--num_folds', dest='num_folds', help='Number of folds', default=None, type=int)
+    parser.add_argument('--model_type', dest='model_type', help='Name model', default='nf_net', type=str)
     parser.print_help()
     return parser.parse_args()
 
 
-def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, device, epoch):
+def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, device):
     """
-    :param model: model
-    :param optimizer: optimizer
-    :param criterion: loss
-    :param dataloader: train data dataloader
-    :param device: gpu or tpu
-    :return: average loss
+    Train one epoch
+    :param model: ``instance of nn.Module``, model
+    :param optimizer: ``instance of optim.object``, optimizer
+    :param criterion: ``nn.Object``, loss function
+    :param dataloader: ``instance of Dataloader``, dataloader on train data
+    :param metric_logger: ``instance of MetricLogger``, helper class
+    :param device: ``str``, cpu or gpu
+    :return: ``float``, average loss on epoch
     """
     model.train()
     losses = AverageMeter()
+
     if cfg.USE_APEX:
         scaler = GradScaler()
+
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
         batch_size = label.size(0)
@@ -84,17 +85,26 @@ def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, devi
 
         optimizer.zero_grad()
 
-        if batch_idx % cfg.LOG_FREQ == 0:
-            metric_logger.train_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
+        if batch_idx % cfg.LOSS_FREQ == 0:
+            metric_logger.train_loss(losses.val)
 
         loop.set_postfix(
-            loss=loss.item()
+            loss=losses.val
         )
 
     return losses.avg
 
 
-def eval_one_epoch(model, criterion, dataloader, metric_logger, device, epoch):
+def eval_one_epoch(model, criterion, dataloader, metric_logger, device):
+    """
+    Evaluate one epoch
+    :param model: ``instance of nn.Module``, model
+    :param criterion: ``nn.Object``, loss function
+    :param dataloader: ``instance of Dataloader``, dataloader on train data
+    :param metric_logger: ``instance of MetricLogger``, helper class
+    :param device: ``str``, cpu or gpu
+    :return: ``List([float, list])``, average loss of epoch, list predictions
+    """
     model.eval()
     losses = AverageMeter()
     preds = []
@@ -107,13 +117,14 @@ def eval_one_epoch(model, criterion, dataloader, metric_logger, device, epoch):
             y_preds = model(img)
         loss = criterion(y_preds.view(-1), label)
         losses.update(loss.item(), batch_size)
+        # record acc
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
-        if batch_idx % cfg.LOG_FREQ == 0:
-            metric_logger.val_loss_batch(loss.item(), epoch, len(dataloader), batch_idx)
+        if batch_idx % cfg.LOSS_FREQ == 0:
+            metric_logger.val_loss(losses.val)
 
         loop.set_postfix(
-            loss=loss.item()
+            loss=losses.val
         )
 
     predictions = np.concatenate(preds)
@@ -125,142 +136,131 @@ if __name__ == '__main__':
     args = parse_args()
 
     assert args.data_path, 'data path not specified'
-    assert args.device in ['gpu', 'tpu'], 'incorrect device type'
-    assert args.eff_ver in ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'], 'incorrect version'
-
-    cfg.DATA_ROOT = args.data_path
-    logger = logging.getLogger('main')
-
-    if args.version_name:
-        project_version = args.version_name
-        cfg.PROJECT_VERSION_NAME = project_version
-    else:
-        project_version = 'unnamed model'
-
-    if args.eff_ver:
-        name_model = f'efficient_{args.eff_ver}'
-        model_version = args.eff_ver
-
-    if args.wandb_key:
-        os.environ["WANDB_API_KEY"] = args.wandb_key
-    if args.wandb_id:
-        cfg.WANDB_ID = args.wandb_id
+    assert args.device in ['gpu', 'cpu'], 'incorrect device type'
+    assert args.model_type in ['nf_net'], 'incorrect model type, available models: [nf_net]'
+    cfg.DATA_FOLDER = args.data_path
+    logger = logging.getLogger('train')
 
     if args.out_dir:
         cfg.OUTPUT_DIR = args.out_dir
-
-    if args.test_epoch:
-        cfg.NUM_EPOCHS = 1
-
-    if args.num_epoch:
-        cfg.NUM_EPOCHS = args.num_epoch
-
-    if args.n_fold:
-        start_fold = args.n_fold
-    else:
-        start_fold = 0
-
-    if args.n_epoch:
-        start_epoch = args.n_epoch
-    else:
-        start_epoch = 0
-
-    logger.info(f'Start {__name__} at {time.ctime()}')
-    logger.info(f'Called with args: {args.__dict__}')
-    logger.info(f'Config params: {cfg.__dict__}')
-
     if args.device == 'gpu':
-        device = torch.device('cuda')
+        cfg.DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    elif args.device == 'cpu':
+        cfg.DEVICE = 'cpu'
 
-    logger.info(f'Using device:{args.device}')
+    if args.run_name:
+        cfg.RUN_NAME = args.run_name
+    if args.wandb_id:
+        cfg.RESUME_ID = args.wandb_id
+    if args.wandb_key:
+        os.environ["WANDB_API_KEY"] = args.wandb_key
 
-    # define dataset
-    data_root = args.data_path
-    train_path = os.path.join(data_root, 'train_labels.csv')
-    train_df = pd.read_csv(train_path)
-    train_df['file_path'] = train_df['id'].apply(get_train_file_path)
-    # Split KFold
-    train_df = split_data_kfold(train_df)
+    if args.num_epochs:
+        cfg.NUM_EPOCHS = args.num_epochs
+    if args.num_folds:
+        cfg.NUM_FOLDS = args.num_folds
 
-    start_epoch = 0
+    if args.model_type:
+        cfg.MODEL_TYPE = args.model_type
+
+    logger.info(f'==> Start {__name__} at {time.ctime()}')
+    logger.info(f'==> Called with args: {args.__dict__}')
+    logger.info(f'==> Config params: {cfg.__dict__}')
+    logger.info(f'==> Using device:{args.device}')
+
+    # paths
+    sub_path = os.path.join(cfg.DATA_FOLDER, 'sample_submission.csv')
+    sub_train_labels = os.path.join(cfg.DATA_FOLDER, 'train_labels.csv')
+
+    old_leaky_data = os.path.join(cfg.DATA_FOLDER, 'old_leaky_data')    # Full pre-relaunch data, including test labels
+    train_data = os.path.join(cfg.DATA_FOLDER, 'train')                 # A training set of cadence snippet files
+    test_data = os.path.join(cfg.DATA_FOLDER, 'test')                   # The test set cadence snippet files
+    sample_sub = pd.read_csv(sub_path)                                  # A sample submission file in the correct format
+    train_df = pd.read_csv(sub_train_labels)                            # Targets corresponding (by id)
+
+    # Add img file paths to dataframe
+    train_df['file_paths'] = train_df['id'].apply(get_train_file_path)
+    # Stratified K-Fold, split train data to K folds
+    train_df = split_data_kfold(train_df, cfg.NUM_FOLDS)
+    # out of fold (predictions), for display results
     oof_df = pd.DataFrame()
-    for fold in range(start_fold, cfg.N_FOLD):
+    # Train loop
+    for fold in range(0, cfg.FOLD_LIST):
+        logger.info(f'========== Fold: [{fold} of {len(cfg.FOLD_LIST)}] ==========')
+        # Each fold divide on train and validation datasets
         train_idxs = train_df[train_df['fold'] != fold].index
         val_idxs = train_df[train_df['fold'] == fold].index
         train_folds = train_df.loc[train_idxs].reset_index(drop=True)
         val_folds = train_df.loc[val_idxs].reset_index(drop=True)
-        val_labels = val_folds['target'].values
+        val_labels = val_folds['target'].values     # list of validation dataset targets of current fold
+        # Define dataset and dataloader
         train_dataset = SETIDataset(train_folds, transform=True)
-        val_dataset = SETIDataset(val_folds)
+        val_dataset = SETIDataset(val_folds, resize=True)
+
         train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True, num_workers=2,
                                       pin_memory=True, drop_last=True)
         val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
                                     drop_last=False)
-        # defining optimizer, scheduler, loss
+        # Define pretrained model or load from previous checkpoint
         if args.ckpt:
-            try:
-                model = get_model('efficientnet', version=model_version).to(device)
-                state = torch.load(args.ckpt)
-                model.load_state_dict(state['model'])
-                logger.info(f"resume training")
-            except Exception:
-                logger.error("incorrect type or path of model")
-                raise ValueError
+            # TODO: load model
+            pass
         else:
-            model = get_model('efficientnet', version=model_version).to(device)
-            logger.info(f"load default weights")
-
-        optimizer = optim.Adam(model.parameters(model), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
-                               weight_decay=cfg.WEIGHT_DECAY, amsgrad=False)
+            model = get_model(model_name=cfg.MODEL_TYPE).to(cfg.DEVICE)
+            logger.info(f"==> Load default pretrained model: {cfg.MODEL_TYPE}")
+        # Define optimizer & scheduler
+        optimizer = optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY, amsgrad=False)
         scheduler = get_scheduler(optimizer)
+        # Losses
         criterion = nn.BCEWithLogitsLoss()
-        metric_logger = MetricLogger(name_model)
+        # Metrics
+        metric_logger = MetricLogger(fold, job_type='Train')
 
         best_score = 0.
         best_loss = np.inf
-
-        for epoch in range(start_epoch, cfg.NUM_EPOCHS):
-            # train model
-            avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, metric_logger,  device, epoch)
-            # evaluate model
-            avg_val_loss, preds = eval_one_epoch(model, criterion, val_dataloader, metric_logger, device, epoch)
+        for epoch in range(cfg.NUM_EPOCHS):
+            # Train model
+            train_avg_loss = train_one_epoch(model, optimizer,criterion, train_dataloader, metric_logger, cfg.DEVICE)
+            # Evaluate model
+            val_avg_loss, preds = eval_one_epoch(model, criterion, val_dataloader, metric_logger, cfg.DEVICE)
+            # Scheduler step
             if isinstance(scheduler, ReduceLROnPlateau):
-                scheduler.step(avg_val_loss)
+                scheduler.step(val_avg_loss)
             elif isinstance(scheduler, CosineAnnealingLR):
                 scheduler.step()
             elif isinstance(scheduler, CosineAnnealingWarmRestarts):
                 scheduler.step()
-            # epoch roc_auc score
-            auc_score = roc_auc_score(val_labels, preds)
-            metric_logger.log(avg_loss, avg_val_loss, auc_score)
-            logger.info(f"Epoch:{epoch} | avg_train_loss:{avg_loss:.4f} | avg_val_loss:{avg_val_loss:.4f}")
-            logger.info(f"------ROC_AUC_SCORE: {auc_score}")
+            # ROC AUC score
+            score = roc_auc_score(val_labels, preds)
+            metric_logger.avg_log(train_avg_loss, val_avg_loss, score)
 
-            if auc_score > best_score:
-                best_score = auc_score
-                save_path = cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_roc_auc.pth.tar"
-                save_checkpoint(save_path, model, preds, epoch)
-                logger.info(f"Found the best roc_auc_score, save model to {save_path}")
-            if avg_val_loss < best_loss:
-                best_loss = avg_val_loss
-                save_path = cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_val_loss.pth.tar"
-                save_checkpoint(save_path, model, preds, epoch)
-                logger.info(f"Found the best validation loss, save model to {save_path}")
+            logger.info(f"Epoch:{epoch} | train_avg_loss:{train_avg_loss:.4f} | val_avg_loss:{val_avg_loss:.4f}")
+            logger.info(f"====== ROC_AUC_SCORE: {score} ======")
 
-            val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{name_model}_fold_{fold}_best_val_loss.pth.tar",
-                                            map_location=torch.device("cpu"))['preds']
+            # Found the best roc auc score on current fold
+            if score > best_score:
+                best_score = score
+                save_path = os.path.join(cfg.OUTPUT_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_score.pth.tar")
+                save_checkpoint(save_path, model, optimizer, cfg.LEARNING_RATE, preds)
+                logger.info(f"==> Found the best ROC_AUC score, save model to {save_path}")
+            if val_avg_loss < best_loss:
+                best_loss = val_avg_loss
+                save_path = os.path.join(cfg.OUTPUT_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar")
+                save_checkpoint(save_path, model, optimizer, cfg.LEARNING_RATE, preds)
 
-        _oof_df = val_folds
-        oof_df = pd.concat([oof_df, _oof_df])
+        val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar",
+                                        map_location=torch.device("cpu"))['preds']
+        # save predictions for CV
+        oof_df = pd.concat([oof_df, val_folds])
+        # display roc auc score on current fold
+        logger.info(f"========== Fold: {fold} Result ==========")
+        print_result(val_folds)
+        # Reinitializing metric run
+        metric_logger.finish()
 
-        logger.info(f'--------------------[{fold}-of-{cfg.N_FOLD}--------------------[')
-        # Best epoch result
-        print_result(_oof_df)
-
-        del model
-        gc.collect()
-
-    # best from all folds
-    logger.info("=========== CROSS-VALIDATION SCORE ===========")
+    # Cross Validation score
+    logger.info("==> Train done")
+    logger.info("Cross validation score")
     print_result(oof_df)
+    # Save CV result to csv file
     oof_df.to_csv(cfg.OUTPUT_DIR + 'oof_df.csv', index=False)
