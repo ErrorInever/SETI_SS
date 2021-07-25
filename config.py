@@ -6,7 +6,7 @@ __C = edict()
 cfg = __C
 
 # NAMES
-__C.PROJECT_NAME = "SETI"
+__C.PROJECT_NAME = "SETI E.T."
 __C.RUN_NAME = "SETI_BASELINE"
 __C.MODEL_TYPE = None
 # GLOBAL
