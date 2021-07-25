@@ -201,15 +201,26 @@ if __name__ == '__main__':
                                       pin_memory=True, drop_last=True)
         val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
                                     drop_last=False)
-        # Define pretrained model or load from previous checkpoint
+        # Define optimizer and pretrained model or load from previous checkpoint
+        model = get_model(model_name=cfg.MODEL_TYPE, pretrained=True).to(cfg.DEVICE)
+        optimizer = optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY,
+                                   amsgrad=False)
+        # Load checkpoint
         if args.ckpt:
-            # TODO: load model
-            pass
+            try:
+                state = torch.load(args.ckpt, map_location=cfg.DEVICE)
+                model.load_state_dict(state['model'])
+                optimizer.load_state_dict(state['opt'])
+                for param_group in optimizer.param_groups:
+                    param_group["lr"] = state['lr']
+                logger.info("Loaded checkpoint")
+            except Exception:
+                logger.error("Fail to load model")
+                raise ValueError
         else:
-            model = get_model(model_name=cfg.MODEL_TYPE).to(cfg.DEVICE)
             logger.info(f"==> Load default pretrained model: {cfg.MODEL_TYPE}")
-        # Define optimizer & scheduler
-        optimizer = optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY, amsgrad=False)
+
+        # Scheduler
         scheduler = get_scheduler(optimizer)
         # Losses
         criterion = nn.BCEWithLogitsLoss()
