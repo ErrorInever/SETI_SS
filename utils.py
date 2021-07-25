@@ -66,7 +66,7 @@ def get_train_file_path(image_id):
     Add new column with file path to train images
     :param image_id: img id
     """
-    return "{}/train/{}/{}.npy".format(cfg.DATA_ROOT, image_id[0], image_id)
+    return "{}/train/{}/{}.npy".format(cfg.DATA_FOLDER, image_id[0], image_id)
 
 
 def get_test_file_path(image_id):
@@ -74,7 +74,7 @@ def get_test_file_path(image_id):
     Add new column with file path to test images
     :param image_id: img id
     """
-    return "{}/test/{}/{}.npy".format(cfg.DATA_ROOT, image_id[0], image_id)
+    return "{}/test/{}/{}.npy".format(cfg.DATA_FOLDER, image_id[0], image_id)
 
 
 def get_scheduler(optimizer):
