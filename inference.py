@@ -30,11 +30,11 @@ def parse_args():
 def inference(model, states, dataloader, device):
     """
     Get average probabilities of all models
-    :param model:
-    :param states:
-    :param dataloader:
-    :param device:
-    :return:
+    :param model: ``instance of nn.Module``, model
+    :param states: ``List([instance of nn.Module])``, list states of models
+    :param dataloader: ``instance of Dataloader``, dataloader on train data
+    :param device: ``str``, cpu or gpu
+    :return: ``List([Float])``, average probabilities of all models
     """
     loop = tqdm(dataloader, leave=True)
     probs = []
