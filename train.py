@@ -137,7 +137,7 @@ if __name__ == '__main__':
 
     assert args.data_path, 'data path not specified'
     assert args.device in ['gpu', 'cpu'], 'incorrect device type'
-    assert args.model_type in ['nf_net'], 'incorrect model type, available models: [nf_net]'
+    assert args.model_type in ['nf_net', 'efficient'], 'incorrect model type, available models: [nf_net, efficient]'
     cfg.DATA_FOLDER = args.data_path
     logger = logging.getLogger('train')
 
