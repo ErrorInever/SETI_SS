@@ -42,6 +42,7 @@ __C.RESUME_ID = None
 # PATHS
 __C.DATA_FOLDER = None
 __C.OUTPUT_DIR = './'
+__C.MODEL_DIR = None
 
 # Init logger
 logger = logging.getLogger()

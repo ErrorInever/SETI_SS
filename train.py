@@ -168,7 +168,7 @@ if __name__ == '__main__':
     logger.info(f'==> Config params: {cfg.__dict__}')
     logger.info(f'==> Using device:{args.device}')
 
-    # paths
+    # Paths and create DataFrames
     sub_path = os.path.join(cfg.DATA_FOLDER, 'sample_submission.csv')
     sub_train_labels = os.path.join(cfg.DATA_FOLDER, 'train_labels.csv')
 
