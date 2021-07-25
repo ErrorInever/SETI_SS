@@ -275,4 +275,4 @@ if __name__ == '__main__':
     logger.info("Cross validation score")
     print_result(oof_df)
     # Save CV result to csv file
-    oof_df.to_csv(os.path.join(cfg.OUTPUT_DIR,'oof_df.csv'), index=False)
+    oof_df.to_csv(os.path.join(cfg.OUTPUT_DIR, 'oof_df.csv'), index=False)
