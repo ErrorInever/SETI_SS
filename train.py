@@ -260,7 +260,7 @@ if __name__ == '__main__':
                 save_path = os.path.join(cfg.OUTPUT_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar")
                 save_checkpoint(save_path, model, optimizer, cfg.LEARNING_RATE, preds)
 
-        val_folds['preds'] = torch.load(cfg.OUTPUT_DIR + f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar",
+        val_folds['preds'] = torch.load(os.path.join(cfg.OUTPUT_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar"),
                                         map_location=torch.device("cpu"))['preds']
         # save predictions for CV
         oof_df = pd.concat([oof_df, val_folds])

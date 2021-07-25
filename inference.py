@@ -93,7 +93,8 @@ if __name__ == '__main__':
     # Load model
     model = get_model(model_name=cfg.MODEL_TYPE, pretrained=False).to(cfg.DEVICE)
     # Load states of each fold
-    states = [torch.load(cfg.MODEL_DIR + f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar") for fold in cfg.FOLD_LIST]
+    states = [torch.load(
+        os.path.join(cfg.MODEL_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar")) for fold in cfg.FOLD_LIST]
     # Define test dataset & dataloader
     test_dataset = SETIDataset(test_df, resize=True)
     test_dataloader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True)
