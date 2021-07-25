@@ -11,7 +11,7 @@ class SETIDataset(Dataset):
     def __init__(self, df, transform=None, resize=None):
         self.df = df
         self.cad_ids = df['id'].values
-        self.cad_paths = df['file_path'].values
+        self.cad_paths = df['file_paths'].values
         self.cad_labels = df['target'].values
 
         self.train_transform = transform
