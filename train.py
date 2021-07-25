@@ -147,21 +147,22 @@ if __name__ == '__main__':
         cfg.DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     elif args.device == 'cpu':
         cfg.DEVICE = 'cpu'
-
     if args.run_name:
         cfg.RUN_NAME = args.run_name
     if args.wandb_id:
         cfg.RESUME_ID = args.wandb_id
     if args.wandb_key:
         os.environ["WANDB_API_KEY"] = args.wandb_key
-
     if args.num_epochs:
         cfg.NUM_EPOCHS = args.num_epochs
     if args.num_folds:
         cfg.NUM_FOLDS = args.num_folds
-
     if args.model_type:
         cfg.MODEL_TYPE = args.model_type
+    if args.one_epoch:
+        cfg.NUM_EPOCHS = 1
+    if args.one_fold:
+        cfg.NUM_FOLDS = 1
 
     logger.info(f'==> Start {__name__} at {time.ctime()}')
     logger.info(f'==> Called with args: {args.__dict__}')
