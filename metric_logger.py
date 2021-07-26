@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class MetricLogger:
     """Metric class"""
-    def __init__(self, fold, job_type='Train'):
+    def __init__(self, fold, group_name='Default group name'):
         params = {
             'model_type': cfg.MODEL_TYPE,
             'seed': cfg.SEED,
@@ -38,8 +38,8 @@ class MetricLogger:
             id=wandb_id,
             project=cfg.PROJECT_NAME,
             config=params,
-            group=cfg.MODEL_TYPE,
-            job_type=job_type,
+            group=group_name,
+            tags=tag,
             name=f'Fold: {fold}',
             resume=True)
 

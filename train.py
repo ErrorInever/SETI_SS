@@ -226,7 +226,7 @@ if __name__ == '__main__':
         # Losses
         criterion = nn.BCEWithLogitsLoss()
         # Metrics
-        metric_logger = MetricLogger(fold, job_type='Train')
+        metric_logger = MetricLogger(fold, group_name=f'{cfg.RUN_NAME}')
 
         best_score = 0.
         best_loss = np.inf
