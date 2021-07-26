@@ -187,7 +187,7 @@ if __name__ == '__main__':
     oof_df = pd.DataFrame()
     # Train loop
     for fold in range(cfg.NUM_FOLDS):
-        logger.info(f'========== Fold: [{fold} of {len(cfg.FOLD_LIST)}] ==========')
+        logger.info(f'========== Fold: [{fold + 1} of {len(cfg.FOLD_LIST)}] ==========')
         # Each fold divide on train and validation datasets
         train_idxs = train_df[train_df['fold'] != fold].index
         val_idxs = train_df[train_df['fold'] == fold].index
@@ -265,7 +265,7 @@ if __name__ == '__main__':
         # save predictions for CV
         oof_df = pd.concat([oof_df, val_folds])
         # display roc auc score on current fold
-        logger.info(f"========== Fold: {fold} Result ==========")
+        logger.info(f"========== Fold: {fold + 1} Result ==========")
         print_result(val_folds)
         # Reinitializing metric run
         metric_logger.finish()
@@ -276,3 +276,4 @@ if __name__ == '__main__':
     print_result(oof_df)
     # Save CV result to csv file
     oof_df.to_csv(os.path.join(cfg.OUTPUT_DIR, 'oof_df.csv'), index=False)
+    logger.info(f"Save cross validation file to {os.path.join(cfg.OUTPUT_DIR, 'oof_df.csv')}")
