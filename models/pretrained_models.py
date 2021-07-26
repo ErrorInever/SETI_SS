@@ -17,9 +17,9 @@ class EfficientNetP(nn.Module):
 
 
 class NFNETL0(nn.Module):
-    def __init__(self, pretrained=True):
+    def __init__(self, version, pretrained=True):
         super().__init__()
-        self.model = timm.create_model('nfnet_l0', pretrained=pretrained, in_chans=1)
+        self.model = timm.create_model(f'nfnet_{version}', pretrained=pretrained, in_chans=1)
         self.n_features = self.model.head.fc.in_features
         self.model.head.fc = nn.Linear(self.n_features, cfg.NUM_CLASSES)
 
@@ -27,8 +27,22 @@ class NFNETL0(nn.Module):
         return self.model(x)
 
 
-def get_model(model_type, version='b0', pretrained=True):
+class ECANFNET(nn.Module):
+    def __init__(self, version, pretrained=True):
+        super().__init__()
+        self.model = timm.create_model(f'eca_nfnet_{version}', pretrained=pretrained, in_chans=1)
+        self.n_features = self.model.head.fc.in_features
+        self.model.head.fc = nn.Linear(self.n_features, cfg.NUM_CLASSES)
+
+    def forward(self, x):
+        return self.model(x)
+
+
+def get_model(model_type, version=None, pretrained=True):
     if model_type == 'efficient':
         return EfficientNetP(version, pretrained=pretrained)
     elif model_type == 'nf_net':
-        return NFNETL0(pretrained=pretrained)
+        return NFNETL0(version, pretrained=pretrained)
+    elif model_type == 'eca_nfnet':
+        return ECANFNET(version, pretrained=pretrained)
+

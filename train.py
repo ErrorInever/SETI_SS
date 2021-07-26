@@ -35,8 +35,9 @@ def parse_args():
     parser.add_argument('--num_epochs', dest='num_epochs', help='Number of epochs', default=None, type=int)
     parser.add_argument('--num_folds', dest='num_folds', help='Number of folds', default=None, type=int)
     parser.add_argument('--model_type', dest='model_type', help='Name model', default='nf_net', type=str)
-    parser.add_argument('--efficient_version', dest='efficient_version', help='Version model of efficient',
-                        default='b0', type=str)
+    parser.add_argument('--nf_net_version', dest='nf_net_version', help='Version of NF_NET', default=None, type=str)
+    parser.add_argument('--efficient_version', dest='efficient_version', help='Version of Efficient', default=None,
+                        type=str)
 
     parser.print_help()
     return parser.parse_args()
@@ -139,7 +140,8 @@ if __name__ == '__main__':
 
     assert args.data_path, 'data path not specified'
     assert args.device in ['gpu', 'cpu'], 'incorrect device type'
-    assert args.model_type in ['nf_net', 'efficient'], 'incorrect model type, available models: [nf_net, efficient]'
+    assert args.model_type in ['nf_net', 'efficient', 'eca_nfnet'], 'incorrect model type, available models: ' \
+                                                                    '[nf_net, efficient]'
     cfg.DATA_FOLDER = args.data_path
     logger = logging.getLogger('train')
 
@@ -163,6 +165,13 @@ if __name__ == '__main__':
         cfg.MODEL_TYPE = args.model_type
     if args.one_epoch:
         cfg.NUM_EPOCHS = 1
+
+    if args.nf_net_version:
+        model_version = args.nf_net_version
+    elif args.efficient_version:
+        model_version = args.efficient_version
+    else:
+        model_version = 'b0'
 
     logger.info(f'==> Start {__name__} at {time.ctime()}')
     logger.info(f'==> Called with args: {args.__dict__}')
@@ -203,7 +212,7 @@ if __name__ == '__main__':
         val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
                                     drop_last=False)
         # Define optimizer and pretrained model or load from previous checkpoint
-        model = get_model(model_type=cfg.MODEL_TYPE, version=args.efficient_version, pretrained=True).to(cfg.DEVICE)
+        model = get_model(model_type=cfg.MODEL_TYPE, version=model_version, pretrained=True).to(cfg.DEVICE)
         optimizer = optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY,
                                    amsgrad=False)
         # Load checkpoint
