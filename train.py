@@ -32,7 +32,6 @@ def parse_args():
     parser.add_argument('--wandb_key', dest='wandb_key', help='Use this option if you run it from kaggle notebook, '
                                                               'input api key wandb', default=None, type=str)
     parser.add_argument('--one_epoch', dest='one_epoch', help='Train one epoch', action='store_true')
-    parser.add_argument('--one_fold', dest='one_fold', help='Train one_fold', action='store_true')
     parser.add_argument('--num_epochs', dest='num_epochs', help='Number of epochs', default=None, type=int)
     parser.add_argument('--num_folds', dest='num_folds', help='Number of folds', default=None, type=int)
     parser.add_argument('--model_type', dest='model_type', help='Name model', default='nf_net', type=str)
@@ -161,8 +160,6 @@ if __name__ == '__main__':
         cfg.MODEL_TYPE = args.model_type
     if args.one_epoch:
         cfg.NUM_EPOCHS = 1
-    if args.one_fold:
-        cfg.NUM_FOLDS = 1
 
     logger.info(f'==> Start {__name__} at {time.ctime()}')
     logger.info(f'==> Called with args: {args.__dict__}')

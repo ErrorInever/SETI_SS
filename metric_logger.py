@@ -39,7 +39,6 @@ class MetricLogger:
             project=cfg.PROJECT_NAME,
             config=params,
             group=group_name,
-            tags=tag,
             name=f'Fold: {fold}',
             resume=True)
 
