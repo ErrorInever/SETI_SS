@@ -39,6 +39,7 @@ class MetricLogger:
             project=cfg.PROJECT_NAME,
             config=params,
             group=group_name,
+            job_type='Train',
             name=f'Fold: {fold}',
             resume=True)
 
