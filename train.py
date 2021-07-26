@@ -35,6 +35,9 @@ def parse_args():
     parser.add_argument('--num_epochs', dest='num_epochs', help='Number of epochs', default=None, type=int)
     parser.add_argument('--num_folds', dest='num_folds', help='Number of folds', default=None, type=int)
     parser.add_argument('--model_type', dest='model_type', help='Name model', default='nf_net', type=str)
+    parser.add_argument('--efficient_version', dest='efficient_version', help='Version model of efficient',
+                        default='b0', type=str)
+
     parser.print_help()
     return parser.parse_args()
 
@@ -200,7 +203,7 @@ if __name__ == '__main__':
         val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
                                     drop_last=False)
         # Define optimizer and pretrained model or load from previous checkpoint
-        model = get_model(model_name=cfg.MODEL_TYPE, pretrained=True).to(cfg.DEVICE)
+        model = get_model(model_type=cfg.MODEL_TYPE, version=args.efficient_version, pretrained=True).to(cfg.DEVICE)
         optimizer = optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY,
                                    amsgrad=False)
         # Load checkpoint

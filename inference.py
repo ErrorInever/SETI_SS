@@ -22,6 +22,8 @@ def parse_args():
     parser.add_argument('--device', dest='device', help='Use device: gpu or cpu. Default use gpu if available',
                         default='gpu', type=str)
     parser.add_argument('--oof', dest='oof', help='path to oof score', default=None, type=str)
+    parser.add_argument('--efficient_version', dest='efficient_version', help='Version model of efficient',
+                        default='b0', type=str)
     parser.print_help()
     return parser.parse_args()
 
@@ -90,7 +92,7 @@ if __name__ == '__main__':
     test_df['file_paths'] = test_df['id'].apply(get_test_file_path)
 
     # Load model
-    model = get_model(model_name=cfg.MODEL_TYPE, pretrained=False).to(cfg.DEVICE)
+    model = get_model(model_type=cfg.MODEL_TYPE, version=args.efficient_version, pretrained=False).to(cfg.DEVICE)
     # Load states of each fold
     states = [torch.load(
         os.path.join(cfg.MODEL_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar")) for fold in cfg.FOLD_LIST]
