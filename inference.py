@@ -24,9 +24,9 @@ def parse_args():
     parser.add_argument('--oof', dest='oof', help='path to oof score', default=None, type=str)
     parser.add_argument('--efficient_version', dest='efficient_version', help='Version model of efficient',
                         default='b0', type=str)
+    parser.add_argument('--nf_net_version', dest='nf_net_version', help='Version of NF_NET', default=None, type=str)
     parser.print_help()
     return parser.parse_args()
-
 
 def inference(model, states, dataloader, device):
     """
@@ -75,6 +75,12 @@ if __name__ == '__main__':
         cfg.DEVICE = 'cpu'
     if args.model_type:
         cfg.MODEL_TYPE = args.model_type
+    if args.nf_net_version:
+        model_version = args.nf_net_version
+    elif args.efficient_version:
+        model_version = args.efficient_version
+    else:
+        model_version = 'b0'
 
     logger.info(f'==> Start {__name__} at {time.ctime()}')
     logger.info(f'==> Called with args: {args.__dict__}')
@@ -92,7 +98,7 @@ if __name__ == '__main__':
     test_df['file_paths'] = test_df['id'].apply(get_test_file_path)
 
     # Load model
-    model = get_model(model_type=cfg.MODEL_TYPE, version=args.efficient_version, pretrained=False).to(cfg.DEVICE)
+    model = get_model(model_type=cfg.MODEL_TYPE, version=model_version, pretrained=False).to(cfg.DEVICE)
     # Load states of each fold
     states = [torch.load(
         os.path.join(cfg.MODEL_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar")) for fold in cfg.FOLD_LIST]
