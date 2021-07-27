@@ -235,7 +235,7 @@ if __name__ == '__main__':
             'learning_rate': {
                 "distribution": "uniform",
                 "min": 0.0001,
-                "max": 0.1
+                "max": 0.001
             },
             'batch_size': {
                 'distribution': 'q_log_uniform',
