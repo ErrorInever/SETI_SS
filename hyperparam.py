@@ -144,31 +144,31 @@ def train_fn():
     default_params = {
         'optimizer': 'adam',
         'learning_rate': 1e-2,
-        'batch_size': 32
+        'weight_decay': 1e-6
     }
     wandb_id = wandb.util.generate_id()
-    wandb.init(id=wandb_id, project=cfg.PROJECT_NAME, config=default_params, group=cfg.RUN_NAME, job_type='Hyperparam', name=f'Fold: {0}')
+    wandb.init(id=wandb_id, project='SETI-Sweep', config=default_params, name=f'RUN : {wandb_id}')
     config = wandb.config
 
     optimizer_type = config.optimizer
     learning_rate = config.learning_rate
-    batch_size = config.batch_size
+    weight_decay = config.weight_decay
 
     train_dataset = SETIDataset(train_folds, transform=True)
     val_dataset = SETIDataset(val_folds, resize=True)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2,
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True, num_workers=2,
                                   pin_memory=True, drop_last=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, num_workers=2, pin_memory=True,
+    val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=2, pin_memory=True,
                                 drop_last=False)
 
     model = get_model(model_type=cfg.MODEL_TYPE, version='l0', pretrained=True).to(cfg.DEVICE)
 
     if optimizer_type == 'adam':
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=cfg.WEIGHT_DECAY,
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay,
                                amsgrad=False)
     elif optimizer_type == 'adamW':
-        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg.WEIGHT_DECAY)
+        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg.weight_decay)
     else:
         raise ValueError('No optimizer type')
 
@@ -234,17 +234,17 @@ if __name__ == '__main__':
             },
             'learning_rate': {
                 "distribution": "uniform",
-                "min": 0.0001,
+                "min": 0.00001,
                 "max": 0.001
             },
-            'batch_size': {
-                'distribution': 'q_log_uniform',
-                'q': 1,
-                'min': math.log(16),
-                'max': math.log(64),
+            'weight_decay': {
+                "distribution": "uniform",
+                "min": 1e-6,
+                "max": 1e-2
             },
         }
     }
+
     # Initialize the sweep and run
-    sweep_id = wandb.sweep(sweep_config, project=cfg.PROJECT_NAME)
-    wandb.agent(sweep_id, train_fn, count=10)
+    sweep_id = wandb.sweep(sweep_config, project='SETI-Sweep')
+    wandb.agent(sweep_id, train_fn, count=20)
