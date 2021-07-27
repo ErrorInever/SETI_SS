@@ -246,7 +246,5 @@ if __name__ == '__main__':
         }
     }
     # Initialize the sweep and run
-    #sweep_id = wandb.sweep(sweep_config, project=cfg.PROJECT_NAME)
-    #wandb.agent(sweep_id, train_fn, count=10)
-    train_fn()
-
+    sweep_id = wandb.sweep(sweep_config, project=cfg.PROJECT_NAME)
+    wandb.agent(sweep_id, train_fn, count=10)
