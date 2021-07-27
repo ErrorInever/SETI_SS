@@ -94,7 +94,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
 
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
-    	img = img.to(device)
+        img = img.to(device)
         label = label.to(device)
         with torch.no_grad():
             y_preds = model(img)
