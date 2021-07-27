@@ -58,9 +58,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler, device):
     :return: ``float``, average loss on epoch
     """
     model.train()
-
-    loop = tqdm(dataloader, leave=True)
-    for batch_idx, (img, label) in enumerate(loop):
+    for batch_idx, (img, label) in enumerate(dataloader):
         img, label_a, label_b, lam = mix_up_data(img, label, use_cuda=False)
         img = img.to(device)
         label_a = label_a.to(device)
@@ -72,6 +70,9 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler, device):
         loss.backward()
         xm.optimizer_step(optimizer)
         scheduler.step()
+
+        del img, label_a, label_b # delete for memory conservation
+        gc.collect()
 
     # since the loss is on all 8 cores, reduce the loss values and print the average
     loss_reduced = xm.mesh_reduce('loss_reduce', loss, lambda x: sum(x) / len(x))
@@ -95,8 +96,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
     fin_labels = []
     fin_preds = []
 
-    loop = tqdm(dataloader, leave=True)
-    for batch_idx, (img, label) in enumerate(loop):
+    for batch_idx, (img, label) in enumerate(dataloader):
         img = img.to(device)
         label = label.to(device)
         with torch.no_grad():
@@ -107,7 +107,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
         outputs_np = y_preds.cpu().detach().numpy().tolist()
         fin_labels.extend(targets_np)
         fin_preds.extend(outputs_np)
-        del targets_np, outputs_np
+        del img, label, targets_np, outputs_np
         gc.collect()    # delete for memory conservation
 
     preds, labels = np.array(fin_preds), np.array(fin_labels)
@@ -129,7 +129,7 @@ def train_fn(rank, params):
     mx = params['model']
     train_df = params['df']
 
-    logger.info(f'========== Fold: [{fold + 1} of {len(cfg.FOLD_LIST)}] ==========')
+    xm.master_print(f'========== Fold: [{fold + 1} of {len(cfg.FOLD_LIST)}] ==========')
     # Each fold divide on train and validation datasets
     train_idxs = train_df[train_df['fold'] != fold].index
     val_idxs = train_df[train_df['fold'] == fold].index
