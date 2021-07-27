@@ -215,7 +215,6 @@ if __name__ == '__main__':
     logger.info(f'==> Start {__name__} at {time.ctime()}')
     logger.info(f'==> Called with args: {args.__dict__}')
     logger.info(f'==> Config params: {cfg.__dict__}')
-    logger.info(f'==> Using device:{args.device}')
 
     # Paths and create DataFrames
     sub_path = os.path.join(cfg.DATA_FOLDER, 'sample_submission.csv')
