@@ -179,11 +179,10 @@ if __name__ == '__main__':
     args = parse_args()
 
     assert args.data_path, 'data path not specified'
-    assert args.device in ['gpu', 'cpu'], 'incorrect device type'
     assert args.model_type in ['nf_net', 'efficient', 'eca_nfnet'], 'incorrect model type, available models: ' \
                                                                     '[nf_net, efficient]'
     cfg.DATA_FOLDER = args.data_path
-    logger = logging.getLogger('train')
+    logger = logging.getLogger('tpu train')
 
     # Use float16 for TPU
     os.environ['XLA_USE_BF16'] = "1"
