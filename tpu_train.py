@@ -115,7 +115,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
     xm.master_print(f'val. auc = {auc}')
 
 
-def train_fn(params, args):
+def train_fn(rank, params):
     fold = params['fold']
     mx = params['model']
     train_df = params['df']
