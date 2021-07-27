@@ -160,12 +160,12 @@ def train_fn(rank, params):
     train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=4,
                                   sampler=train_sampler)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=4, sampler=val_sampler)
-    # clear memory
-    del train_sampler, val_sampler
-    gc.collect()
     # Puts the data onto the current TPU core
     train_loader = pl.MpDeviceLoader(train_dataloader, device)
     val_loader = pl.MpDeviceLoader(val_dataloader, device)
+    # Clear memory 
+    del train_sampler, val_sampler
+    gc.collect()
     # Put model to current TPU core
     model = mx.to(device)
     criterion = nn.BCEWithLogitsLoss()
@@ -177,9 +177,9 @@ def train_fn(rank, params):
     xm.master_print('Start Training now...')
     for epoch in range(cfg.NUM_EPOCHS):
         # Train model
-        train_one_epoch(model, optimizer, criterion, train_dataloader, scheduler, device)
+        train_one_epoch(model, optimizer, criterion, train_loader, scheduler, device)
         # Evaluate model
-        eval_one_epoch(model, criterion, val_dataloader, device)
+        eval_one_epoch(model, criterion, val_loader, device)
 
         gc.collect()
 
