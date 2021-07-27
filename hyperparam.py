@@ -4,6 +4,7 @@ import logging
 import os
 import time
 import torch.nn as nn
+import math
 import numpy as np
 import pandas as pd
 import torch.optim as optim
@@ -236,11 +237,11 @@ if __name__ == '__main__':
                 "min": 0.0001,
                 "max": 0.1
             },
-            "batch_size": {
-                "distribution": "q_log_uniform",
-                "q": 1,
-                "min": 16,
-                "max": 64
+            'batch_size': {
+                'distribution': 'q_log_uniform',
+                'q': 1,
+                'min': math.log(16),
+                'max': math.log(64),
             },
         }
     }
