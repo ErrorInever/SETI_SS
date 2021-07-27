@@ -139,7 +139,6 @@ def train_fn():
     val_idxs = train_df[train_df['fold'] == 0].index
     train_folds = train_df.loc[train_idxs].reset_index(drop=True)
     val_folds = train_df.loc[val_idxs].reset_index(drop=True)
-    val_labels = val_folds['target'].values     # list of validation dataset targets of current fold
 
     default_params = {
         'optimizer': 'adam',
@@ -147,7 +146,7 @@ def train_fn():
         'batch_size': 32
     }
 
-    wandb.init(config=default_params)
+    wandb.init(config=default_params, group=cfg.RUN_NAME, job_type='Hyperparam', name=f'Fold: {0}')
     config = wandb.config
 
     optimizer_type = config.optimizer
@@ -173,6 +172,9 @@ def train_fn():
         raise ValueError('No optimizer type')
 
     criterion = nn.BCEWithLogitsLoss()
+
+    logger.info(f"=Data=\ntrain dataset length: {len(train_dataset)}\nval dataset length: {len(val_dataset)}")
+    logger.info(f"=Config=\noptimizer_type: {optimizer_type}\nlearning_rate: {learning_rate}\nbatch_size: {batch_size}")
     # train one epoch
     train_avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, cfg.DEVICE)
     # eval one epoch
