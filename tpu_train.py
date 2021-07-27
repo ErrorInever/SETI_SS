@@ -145,7 +145,7 @@ def train_fn(rank, params):
         rank=xm.get_ordinal(),
         shuffle=False)
     # Define dataloaders with samplers
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True, num_workers=8,
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=8,
                                   sampler=train_sampler)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=8, sampler=val_sampler)
     # Puts the data onto the current TPU core
