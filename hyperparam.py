@@ -168,7 +168,7 @@ def train_fn():
         optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay,
                                amsgrad=False)
     elif optimizer_type == 'adamW':
-        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg.weight_decay)
+        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     else:
         raise ValueError('No optimizer type')
 
