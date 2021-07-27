@@ -64,6 +64,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler, device):
         img = img.to(device)
         label_a = label_a.to(device)
         label_b = label_b.to(device)
+        lam = lam.to(device)
 
         optimizer.zero_grad()
         y_preds = model(img)
@@ -72,7 +73,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler, device):
         xm.optimizer_step(optimizer)
         scheduler.step()
 
-        del img, label_a, label_b, y_preds # delete for memory conservation
+        del img, label_a, label_b, lam, y_preds # delete for memory conservation
         gc.collect()
 
     # since the loss is on all 8 cores, reduce the loss values and print the average
