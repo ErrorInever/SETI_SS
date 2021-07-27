@@ -246,5 +246,6 @@ if __name__ == '__main__':
     }
 
     # Initialize the sweep and run
-    sweep_id = wandb.sweep(sweep_config, project='SETI-Sweep')
-    wandb.agent(sweep_id, train_fn, count=20)
+    # sweep_id = wandb.sweep(sweep_config, project='SETI-Sweep')
+    # wandb.agent(sweep_id, train_fn, count=20)
+    train_fn()
