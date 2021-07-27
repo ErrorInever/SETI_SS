@@ -175,7 +175,7 @@ def train_fn():
     criterion = nn.BCEWithLogitsLoss()
 
     logger.info(f"=Data=\ntrain dataset length: {len(train_dataset)}\nval dataset length: {len(val_dataset)}")
-    logger.info(f"=Config=\noptimizer_type: {optimizer_type}\nlearning_rate: {learning_rate}\nbatch_size: {fg.BATCH_SIZE}")
+    logger.info(f"=Config=\noptimizer_type: {optimizer_type}\nlearning_rate: {learning_rate}\nbatch_size: {cfg.BATCH_SIZE}")
     # train one epoch
     train_avg_loss = train_one_epoch(model, optimizer, criterion, train_dataloader, cfg.DEVICE)
     # eval one epoch
@@ -245,7 +245,6 @@ if __name__ == '__main__':
         }
     }
 
-    # Initialize the sweep and run
-    # sweep_id = wandb.sweep(sweep_config, project='SETI-Sweep')
-    # wandb.agent(sweep_id, train_fn, count=20)
-    train_fn()
+    Initialize the sweep and run
+    sweep_id = wandb.sweep(sweep_config, project='SETI-Sweep')
+    wandb.agent(sweep_id, train_fn, count=20)
