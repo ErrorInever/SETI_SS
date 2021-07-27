@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 class MetricLogger:
     """Metric class"""
     def __init__(self, fold, group_name='Default group name'):
-        params = {
+
+        self.params = {
             'model_type': cfg.MODEL_TYPE,
             'seed': cfg.SEED,
             'epochs': cfg.NUM_EPOCHS,
@@ -37,7 +38,7 @@ class MetricLogger:
         self._run = wandb.init(
             id=wandb_id,
             project=cfg.PROJECT_NAME,
-            config=params,
+            config=self.params,
             group=group_name,
             job_type='Train',
             name=f'Fold: {fold}',
@@ -57,4 +58,7 @@ class MetricLogger:
         wandb.log({'Val loss': loss})
 
     def finish(self):
+        """
+        Finish current run
+        """
         self._run.finish()
