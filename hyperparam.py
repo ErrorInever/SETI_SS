@@ -82,7 +82,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, device):
         optimizer.zero_grad()
 
         if batch_idx % cfg.LOSS_FREQ == 0:
-            wandb.log({'Train loss': loss})
+            wandb.log({'Train loss': losses.val})
 
         loop.set_postfix(
             loss=losses.val
@@ -116,7 +116,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
         preds.append(y_preds.sigmoid().to('cpu').numpy())
 
         if batch_idx % cfg.LOSS_FREQ == 0:
-            wandb.log({'Val loss': loss})
+            wandb.log({'Val loss': losses.val})
 
         loop.set_postfix(
             loss=losses.val
