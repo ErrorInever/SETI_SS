@@ -43,7 +43,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def train_one_epoch(model, optimizer, criterion, dataloader, scheduler):
+def train_one_epoch(model, optimizer, criterion, dataloader, scheduler, device):
     """
     Train one epoch
     :param model: ``instance of nn.Module``, model
@@ -51,7 +51,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler):
     :param criterion: ``nn.Object``, loss function
     :param dataloader: ``instance of Dataloader``, dataloader on train data
     :param metric_logger: ``instance of MetricLogger``, helper class
-    :param device: ``str``, cpu or gpu
+    :param device: ``str``, XLA device
     :return: ``float``, average loss on epoch
     """
     model.train()
@@ -59,6 +59,10 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler):
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
         img, label_a, label_b, lam = mix_up_data(img, label, use_cuda=False)
+        img = img.to(device)
+        label_a = label_a.to(device)
+        label_b = label_b.to(device)
+
         optimizer.zero_grad()
         y_preds = model(img)
         loss = loss_mix_up(criterion, y_preds.view(-1), label_a, label_b, lam)
@@ -90,6 +94,8 @@ def eval_one_epoch(model, criterion, dataloader, device):
 
     loop = tqdm(dataloader, leave=True)
     for batch_idx, (img, label) in enumerate(loop):
+    	img = img.to(device)
+        label = label.to(device)
         with torch.no_grad():
             y_preds = model(img)
         loss = criterion(y_preds.view(-1), label)
@@ -145,9 +151,9 @@ def train_fn(rank, params):
         rank=xm.get_ordinal(),
         shuffle=False)
     # Define dataloaders with samplers
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=8,
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=4,
                                   sampler=train_sampler)
-    val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=8, sampler=val_sampler)
+    val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=4, sampler=val_sampler)
     # Puts the data onto the current TPU core
     train_loader = pl.MpDeviceLoader(train_dataloader, device)
     val_loader = pl.MpDeviceLoader(val_dataloader, device)
@@ -163,7 +169,7 @@ def train_fn(rank, params):
 
     for epoch in range(cfg.NUM_EPOCHS):
         # Train model
-        train_one_epoch(model, optimizer, criterion, train_dataloader, scheduler)
+        train_one_epoch(model, optimizer, criterion, train_dataloader, scheduler, device)
         # Evaluate model
         eval_one_epoch(model, criterion, val_dataloader, device)
 
