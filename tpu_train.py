@@ -21,6 +21,9 @@ from config import cfg
 from sklearn.metrics import roc_auc_score
 from models.pretrained_models import get_model
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='SETI E.T.')
