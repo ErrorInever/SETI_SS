@@ -58,7 +58,8 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler, device):
     :return: ``float``, average loss on epoch
     """
     model.train()
-    for batch_idx, (img, label) in enumerate(dataloader):
+    loop = tqdm(dataloader, leave=True)
+    for batch_idx, (img, label) in enumerate(loop):
         img, label_a, label_b, lam = mix_up_data(img, label, use_cuda=False)
         img = img.to(device)
         label_a = label_a.to(device)
@@ -71,7 +72,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, scheduler, device):
         xm.optimizer_step(optimizer)
         scheduler.step()
 
-        del img, label_a, label_b # delete for memory conservation
+        del img, label_a, label_b, y_preds # delete for memory conservation
         gc.collect()
 
     # since the loss is on all 8 cores, reduce the loss values and print the average
@@ -95,8 +96,8 @@ def eval_one_epoch(model, criterion, dataloader, device):
 
     fin_labels = []
     fin_preds = []
-
-    for batch_idx, (img, label) in enumerate(dataloader):
+    loop = tqdm(dataloader, leave=True)
+    for batch_idx, (img, label) in enumerate(loop):
         img = img.to(device)
         label = label.to(device)
         with torch.no_grad():
@@ -107,7 +108,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
         outputs_np = y_preds.cpu().detach().numpy().tolist()
         fin_labels.extend(targets_np)
         fin_preds.extend(outputs_np)
-        del img, label, targets_np, outputs_np
+        del img, label, y_preds, targets_np, outputs_np
         gc.collect()    # delete for memory conservation
 
     preds, labels = np.array(fin_preds), np.array(fin_labels)
@@ -122,6 +123,7 @@ def eval_one_epoch(model, criterion, dataloader, device):
     # metric calculation
     auc = roc_auc_score(t_reduced.cpu(), o_reduced.cpu())
     xm.master_print(f'val. auc = {auc}')
+
 
 
 def train_fn(rank, params):
@@ -157,6 +159,9 @@ def train_fn(rank, params):
     train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=4,
                                   sampler=train_sampler)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, num_workers=4, sampler=val_sampler)
+    # clear memory
+    del train_sampler, val_sampler
+    gc.collect()
     # Puts the data onto the current TPU core
     train_loader = pl.MpDeviceLoader(train_dataloader, device)
     val_loader = pl.MpDeviceLoader(val_dataloader, device)
@@ -168,8 +173,7 @@ def train_fn(rank, params):
                            weight_decay=cfg.WEIGHT_DECAY)
     scheduler = get_scheduler(optimizer)
 
-    gc.collect()
-
+    xm.master_print('Start Training now...')
     for epoch in range(cfg.NUM_EPOCHS):
         # Train model
         train_one_epoch(model, optimizer, criterion, train_dataloader, scheduler, device)
