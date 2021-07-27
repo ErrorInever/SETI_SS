@@ -146,8 +146,8 @@ def train_fn():
         'learning_rate': 1e-2,
         'batch_size': 32
     }
-
-    wandb.init(config=default_params, group=cfg.RUN_NAME, job_type='Hyperparam', name=f'Fold: {0}')
+    wandb_id = wandb.util.generate_id()
+    wandb.init(id=wandb_id, project=cfg.PROJECT_NAME, config=default_params, group=cfg.RUN_NAME, job_type='Hyperparam', name=f'Fold: {0}')
     config = wandb.config
 
     optimizer_type = config.optimizer
