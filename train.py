@@ -213,8 +213,7 @@ if __name__ == '__main__':
                                     drop_last=False)
         # Define optimizer and pretrained model or load from previous checkpoint
         model = get_model(model_type=cfg.MODEL_TYPE, version=model_version, pretrained=True).to(cfg.DEVICE)
-        optimizer = optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY,
-                                   amsgrad=False)
+        optimizer = optim.AdamW(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY)
         # Load checkpoint
         if args.ckpt:
             try:
