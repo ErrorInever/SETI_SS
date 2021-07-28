@@ -144,7 +144,6 @@ def train_fn():
     default_params = {
         'optimizer': 'adam',
         'learning_rate': 1e-2,
-        'weight_decay': 1e-6
     }
     wandb_id = wandb.util.generate_id()
     wandb.init(id=wandb_id, project='SETI-Sweep', config=default_params, name=f'RUN : {wandb_id}')
@@ -152,7 +151,6 @@ def train_fn():
 
     optimizer_type = config.optimizer
     learning_rate = config.learning_rate
-    weight_decay = config.weight_decay
 
     train_dataset = SETIDataset(train_folds, transform=True)
     val_dataset = SETIDataset(val_folds, resize=True)
@@ -165,10 +163,10 @@ def train_fn():
     model = get_model(model_type=cfg.MODEL_TYPE, version='l0', pretrained=True).to(cfg.DEVICE)
 
     if optimizer_type == 'adam':
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay,
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=cfg.WEIGHT_DECAY,
                                amsgrad=False)
     elif optimizer_type == 'adamW':
-        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg.WEIGHT_DECAY)
     else:
         raise ValueError('No optimizer type')
 
@@ -235,15 +233,10 @@ if __name__ == '__main__':
             'learning_rate': {
                 "distribution": "uniform",
                 "min": 0.00001,
-                "max": 0.001
-            },
-            'weight_decay': {
-                "distribution": "uniform",
-                "min": 1e-6,
-                "max": 1e-2
+                "max": 0.0001
             },
         }
     }
 
     sweep_id = wandb.sweep(sweep_config, project='SETI-Sweep')
-    wandb.agent(sweep_id, train_fn, count=20)
+    wandb.agent(sweep_id, train_fn, count=10)
