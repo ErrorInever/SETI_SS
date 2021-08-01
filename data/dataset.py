@@ -28,10 +28,12 @@ class SETIDataset(Dataset):
                 fill_value=0, always_apply=False, p=0.5
             ),
             A.ShiftScaleRotate(shift_limit=0.25, scale_limit=0.1, rotate_limit=0),
+            # A.Normalize(mean=-0.0001, std=0.9055),
             ToTensorV2()
         ])
         self._resize_to_tensor = A.Compose([
             A.Resize(cfg.IMG_SIZE, cfg.IMG_SIZE),
+            # A.Normalize(mean=-0.0002, std=0.8453),
             ToTensorV2()
         ])
 
