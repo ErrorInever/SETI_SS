@@ -89,6 +89,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, metric_logger, devi
         optimizer.zero_grad()
 
         if batch_idx % cfg.LOSS_FREQ == 0:
+            print('log')
             metric_logger.train_loss(losses.val)
 
         loop.set_postfix(
