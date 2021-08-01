@@ -34,6 +34,9 @@ def parse_args():
     parser.add_argument('--one_epoch', dest='one_epoch', help='Train one epoch', action='store_true')
     parser.add_argument('--num_epochs', dest='num_epochs', help='Number of epochs', default=None, type=int)
     parser.add_argument('--num_folds', dest='num_folds', help='Number of folds', default=None, type=int)
+    parser.add_argument('--start_epoch', dest='start_epoch', help='Start from specified epoch', default=None, type=int)
+    parser.add_argument('--train_one_fold', dest='train_one_fold', help='Train only one specific fold',
+                        default=None, type=int)
     parser.add_argument('--model_type', dest='model_type', help='Name model', default='nf_net', type=str)
     parser.add_argument('--nf_net_version', dest='nf_net_version', help='Version of NF_NET', default=None, type=str)
     parser.add_argument('--efficient_version', dest='efficient_version', help='Version of Efficient', default=None,
@@ -142,6 +145,7 @@ if __name__ == '__main__':
     assert args.device in ['gpu', 'cpu'], 'incorrect device type'
     assert args.model_type in ['nf_net', 'efficient', 'eca_nfnet'], 'incorrect model type, available models: ' \
                                                                     '[nf_net, efficient]'
+    assert args.train_one_fold in [cfg.FOLD_LIST], f'incorrect fold: {args.train_one_fold} not in {[cfg.FOLD_LIST]}'
     cfg.DATA_FOLDER = args.data_path
     logger = logging.getLogger('train')
 
@@ -165,6 +169,17 @@ if __name__ == '__main__':
         cfg.MODEL_TYPE = args.model_type
     if args.one_epoch:
         cfg.NUM_EPOCHS = 1
+    if args.start_epoch:
+        start_epoch = args.start_epoch
+    else:
+        start_epoch = 0
+
+    if args.train_one_fold:
+        start_fold = args.train_one_fold
+        train_one_fold = True
+    else:
+        start_fold = 0
+        train_one_fold = False
 
     if args.nf_net_version:
         model_version = args.nf_net_version
@@ -195,7 +210,7 @@ if __name__ == '__main__':
     # out of fold (predictions), for display results
     oof_df = pd.DataFrame()
     # Train loop
-    for fold in range(cfg.NUM_FOLDS):
+    for fold in range(start_fold, cfg.NUM_FOLDS):
         logger.info(f'========== Fold: [{fold + 1} of {len(cfg.FOLD_LIST)}] ==========')
         # Each fold divide on train and validation datasets
         train_idxs = train_df[train_df['fold'] != fold].index
@@ -219,10 +234,11 @@ if __name__ == '__main__':
             try:
                 state = torch.load(args.ckpt, map_location=cfg.DEVICE)
                 model.load_state_dict(state['model'])
+                start_epoch = state['epoch'] + 1
                 optimizer.load_state_dict(state['opt'])
                 for param_group in optimizer.param_groups:
                     param_group["lr"] = state['lr']
-                logger.info("Loaded checkpoint")
+                logger.info(f"==> Loaded checkpoint.\n==> Start epoch: {start_epoch}")
             except Exception:
                 logger.error("Fail to load model")
                 raise ValueError
@@ -238,7 +254,7 @@ if __name__ == '__main__':
 
         best_score = 0.
         best_loss = np.inf
-        for epoch in range(cfg.NUM_EPOCHS):
+        for epoch in range(start_epoch, cfg.NUM_EPOCHS):
             # Train model
             train_avg_loss = train_one_epoch(model, optimizer,criterion, train_dataloader, metric_logger, cfg.DEVICE)
             # Evaluate model
@@ -261,12 +277,12 @@ if __name__ == '__main__':
             if score > best_score:
                 best_score = score
                 save_path = os.path.join(cfg.OUTPUT_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_score.pth.tar")
-                save_checkpoint(save_path, model, optimizer, cfg.LEARNING_RATE, preds)
+                save_checkpoint(save_path, model, optimizer, cfg.LEARNING_RATE, preds, epoch)
                 logger.info(f"==> Found the best ROC_AUC score, save model to {save_path}")
             if val_avg_loss < best_loss:
                 best_loss = val_avg_loss
                 save_path = os.path.join(cfg.OUTPUT_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar")
-                save_checkpoint(save_path, model, optimizer, cfg.LEARNING_RATE, preds)
+                save_checkpoint(save_path, model, optimizer, cfg.LEARNING_RATE, preds, epoch)
 
         val_folds['preds'] = torch.load(os.path.join(cfg.OUTPUT_DIR, f"{cfg.MODEL_TYPE}_fold_{fold}_best_val_loss.pth.tar"),
                                         map_location=torch.device("cpu"))['preds']
@@ -277,6 +293,9 @@ if __name__ == '__main__':
         print_result(val_folds)
         # Reinitializing metric run
         metric_logger.finish()
+        # Train only one specific fold
+        if train_one_fold:
+            break
 
     # Cross Validation score
     logger.info("==> Train done")

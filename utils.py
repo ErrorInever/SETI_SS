@@ -106,7 +106,7 @@ def print_result(result_df):
     logger.info(f'Score: {score:<.4f}')
 
 
-def save_checkpoint(save_path, model, optimizer, lr, preds):
+def save_checkpoint(save_path, model, optimizer, lr, preds, epoch):
     """
     Save state to hard drive
     :param save_path: ``str``, path to save state
@@ -114,12 +114,14 @@ def save_checkpoint(save_path, model, optimizer, lr, preds):
     :param optimizer: ``instance of optim.object``, optimizer
     :param lr: ``float``, current learning rate
     :param preds: ``List(floats)``, average eval loss of epoch, list of predictions
+    :param epoch: ``int``, current epoch
     """
     torch.save({
         'model': model.state_dict(),
         'opt': optimizer.state_dict(),
         'lr': lr,
         'preds': preds,
+        'epoch': epoch
     }, save_path)
 
 
