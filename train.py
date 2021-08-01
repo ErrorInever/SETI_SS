@@ -38,6 +38,7 @@ def parse_args():
     parser.add_argument('--nf_net_version', dest='nf_net_version', help='Version of NF_NET', default=None, type=str)
     parser.add_argument('--efficient_version', dest='efficient_version', help='Version of Efficient', default=None,
                         type=str)
+    parser.add_argument('--lr', dest='lr', help='learning rate', default=None, type=float)
 
     parser.print_help()
     return parser.parse_args()
@@ -172,6 +173,8 @@ if __name__ == '__main__':
         model_version = args.efficient_version
     else:
         model_version = 'b0'
+    if args.lr:
+    	cfg.LEARNING_RATE = args.lr
 
     logger.info(f'==> Start {__name__} at {time.ctime()}')
     logger.info(f'==> Called with args: {args.__dict__}')
