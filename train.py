@@ -145,7 +145,7 @@ if __name__ == '__main__':
     assert args.device in ['gpu', 'cpu'], 'incorrect device type'
     assert args.model_type in ['nf_net', 'efficient', 'eca_nfnet'], 'incorrect model type, available models: ' \
                                                                     '[nf_net, efficient]'
-    assert args.train_one_fold in [cfg.FOLD_LIST], f'incorrect fold: {args.train_one_fold} not in {[cfg.FOLD_LIST]}'
+    assert args.train_one_fold in cfg.FOLD_LIST, f'incorrect fold: {args.train_one_fold} not in {[cfg.FOLD_LIST]}'
     cfg.DATA_FOLDER = args.data_path
     logger = logging.getLogger('train')
 
