@@ -294,7 +294,7 @@ if __name__ == '__main__':
         # Reinitializing metric run
         metric_logger.finish()
         # Train only one specific fold
-        if train_one_fold:
+        if train_one_fold is not None:
             break
 
     # Cross Validation score
